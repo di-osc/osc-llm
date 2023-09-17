@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "my-llm"
+version = "0.1.0"
+description = ""
+authors = ["wangmengdi"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+bitsandbytes = ">=0.41.1"
+sentencepiece = ">=0.1.99"
+tokenizers = ">=0.13.3"
+huggingface_hub = ">=0.17.1"
+
+[tool.poetry.scripts]
+llm = "my_llm.cli:app"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
