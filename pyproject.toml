@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "osc-llm"
 version = "0.1.0"
-description = ""
-authors = ["wangmengdi"]
+description = "复现主流中文大语言模型"
+authors = ["wangmengdi <790990241@qq.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -13,7 +13,7 @@ tokenizers = ">=0.13.3"
 huggingface_hub = ">=0.17.1"
 
 [tool.poetry.scripts]
-llm = "my_llm.cli:app"
+llm = "osc_llm.cli:app"
 
 
 [build-system]
