@@ -2,13 +2,15 @@ title: project-demo
 description: describe project details
 vars:
   version: 0.1.0
-  experiment_model: ziqingyang/chinese-alpaca-2-7b
-  chechpoint_dir: /root/autodl-tmp/llama2-7b
-  temperature: 1.0
+  repo_id: ziqingyang/chinese-alpaca-2-13b
+  chechpoint_dir: 
+  temperature: 0.8
 check_requirements: false
-directories:
-  - dist
 workflows:
+  all: 
+    - download
+    - convert
+    - chat
   test:
     - install 
     - chat
@@ -16,20 +18,20 @@ commands:
   - name: chat
     help: 与机器人聊天
     script:
-      - llm chat ${vars.chechpoint_dir} --temperature ${vars.temperature}
+      - llm chat ${vars.chechpoint_dir}/${vars.repo_id} --temperature ${vars.temperature} --accelerator cuda
       
   - name: install
     help: 重新打包并安装
     script:
       - poetry build
-      - pip install dist/my_llm-${vars.version}.tar.gz
+      - pip install dist/osc_llm-${vars.version}.tar.gz
 
   - name: download
     help: 下载原始模型
     script:
-      - llm download ${vars.experiment_model} --save-dir ${vars.chechpoint_dir}
+      - llm download ${vars.repo_id} --save-dir ${vars.chechpoint_dir}
 
   - name: convert
     help: 转换模型
     script:
-      - llm convert ${vars.chechpoint_dir}
+      - llm convert ${vars.chechpoint_dir}/${vars.repo_id}
