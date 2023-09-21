@@ -9,8 +9,6 @@ from ..layer import RMSNorm
 
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
-
-
 FlashAttention2Available = RequirementCache("flash-attn>=2.0.0.post1")
 
 
@@ -20,15 +18,13 @@ class LlamaConfig:
     name: str = "llama-7B"
     vocab_size: int = 55296
     block_size: int = 4096
-    padding_multiple: int = 64
     n_layer: int = 32
     n_embd: int = 4096
     n_head: int = 32
+    intermediate_size: Optional[int] = 11008
     bias: bool = False
-    rotary_percentage: float = 1.0
     n_query_groups: Optional[int] = None
     norm_eps: float = 1e-5
-    intermediate_size: Optional[int] = 11008
     condense_ratio: int = 1.0
 
     def __post_init__(self):
@@ -51,18 +47,14 @@ class LlamaConfig:
         conf_dict.update(kwargs)
         return cls(**conf_dict)
 
+
 name_to_config = {"7B": {"name": "llama-7B",
                          "block_size": 4096, 
                          "n_layer": 32, 
                          "n_embd": 4096, 
                          "n_head": 32, 
                          "n_query_groups": 32, 
-                         "intermediate_size": 11008},
-                  "1B": {"name": "llama-1B",
-                         "block_size": 2048,
-                         "n_layer": 32,
-                         "n_embd": 4096,
-                         }}
+                         "intermediate_size": 11008}}
 
 
 class LlamaMLP(torch.nn.Module):
@@ -77,6 +69,7 @@ class LlamaMLP(torch.nn.Module):
         x2 = self.fc_2(x)
         x = nn.functional.silu(x1) * x2
         return self.proj(x)
+    
     
 class KVCache(nn.Module):
     def __init__(self, 
@@ -103,9 +96,9 @@ class Llama(nn.Module):
         super().__init__()
         self.config = config
         
-        self.transformer = nn.ModuleDict(dict(wte=nn.Embedding(config.vocab_size, config.n_embd), 
-                                              h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-                                              ln_f=RMSNorm(config.n_embd, eps=config.norm_eps)))
+        self.transformer = nn.ModuleDict(dict(token_embeddings=nn.Embedding(config.vocab_size, config.n_embd), 
+                                              blocks=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+                                              norm=RMSNorm(config.n_embd, eps=config.norm_eps)))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
         
         self.mask_cache: Optional[torch.Tensor] = None
@@ -121,7 +114,6 @@ class Llama(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-
 
     def forward(self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
         
@@ -140,13 +132,12 @@ class Llama(nn.Module):
             sin = self.sin[:T]
             mask = None
 
-        x = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
-        for block in self.transformer.h:
+        x = self.transformer.token_embeddings(idx)  # token embeddings of shape (b, t, n_embd)
+        for block in self.transformer.blocks:
             x = block(x, cos, sin, mask, input_pos)
-        x = self.transformer.ln_f(x)
+        x = self.transformer.norm(x)
         return self.lm_head(x)  # (b, t, vocab_size)
         
-
     @classmethod
     def from_name(cls, name: str, **kwargs: Any) -> Self:
         return cls(LlamaConfig.from_name(name, **kwargs))
@@ -175,7 +166,6 @@ class Llama(nn.Module):
             self.cos = cos
             self.sin = sin 
                 
-
     def build_rope_cache(self, device: Optional[torch.device] = None) -> RoPECache:
         return build_rope_cache(seq_len=self.max_seq_length,
                                 n_elem=self.config.head_size,
@@ -187,29 +177,25 @@ class Llama(nn.Module):
         ones = torch.ones((self.config.block_size, self.config.block_size), device=idx.device, dtype=torch.bool)
         return torch.tril(ones).unsqueeze(0).unsqueeze(0)
     
-
     def build_kv_caches(self, batch_size: int, device: Optional[torch.device] = None, dtype: Optional[torch.device] = None) -> List[KVCache]:
-        
-        for block in self.transformer.h:
+        for block in self.transformer.blocks:
             block.attn.build_kv_cache(batch_size, self.max_seq_length, device, dtype)
-        
         if self.mask_cache is None or self.mask_cache.size(3) != self.max_seq_length:
             ones = torch.ones((self.config.block_size, self.max_seq_length), device=device, dtype=torch.bool)
             self.mask_cache = torch.tril(ones).unsqueeze(0).unsqueeze(0)
             
-            
     def clear_kv_caches(self) -> None:
         self.mask_cache = None
-        for block in self.transformer.h:
+        for block in self.transformer.blocks:
             block.attn.kv_cache = None
     
     
 class Block(nn.Module):
     def __init__(self, config: LlamaConfig) -> None:
         super().__init__()
-        self.norm_1 = RMSNorm(size=config.n_embd, eps=config.norm_eps)
+        self.norm_attn = RMSNorm(size=config.n_embd, eps=config.norm_eps)
         self.attn = LlamaAttention(config)
-        self.norm_2 = RMSNorm(size=config.n_embd, eps=config.norm_eps)
+        self.norm_mlp = RMSNorm(size=config.n_embd, eps=config.norm_eps)
         self.mlp = LlamaMLP(n_embd=config.n_embd, intermediate_size=config.intermediate_size, bias=config.bias)
 
     def forward(self,
@@ -219,11 +205,11 @@ class Block(nn.Module):
                 mask: Optional[torch.Tensor] = None,
                 input_pos: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Optional[KVCache]]:
         
-        h = self.attn(x=self.norm_1(x), cos=cos, sin=sin, mask=mask, input_pos=input_pos)
+        h = self.attn(x=self.norm_attn(x), cos=cos, sin=sin, mask=mask, input_pos=input_pos)
         # 注意力层残差
         x = x + h
         # MLP残差
-        x = x + self.mlp(self.norm_2(x))
+        x = x + self.mlp(self.norm_mlp(x))
         return x 
         
        
@@ -357,6 +343,4 @@ def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.T
     x2 = x[..., head_size // 2 :]  # (B, nh, T, hs/2)
     rotated = torch.cat((-x2, x1), dim=-1)  # (B, nh, T, hs)
     roped = (x * cos) + (rotated * sin)
-    return roped.type_as(x)
-        
-        
+    return roped.type_as(x) 

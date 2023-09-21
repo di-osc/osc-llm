@@ -20,9 +20,22 @@ _SAFETENSORS_AVAILABLE = RequirementCache("safetensors")
 
 @app.command('download')
 def download_huggingface_model(repo_id: str, 
-                               save_dir: Optional[str] = None,
+                               save_dir: str = "./checkpoints",
+                               force_download: bool = False,
                                access_token: Optional[str] = os.getenv("HF_TOKEN"),
                                from_safetensors: bool = False):
+    
+    directory = Path(save_dir, repo_id)
+    if directory.exists():
+        if not force_download:
+            typer.echo(f"Directory {directory} already exists. Use --force-download to re-download.")
+            return
+        else:
+            typer.echo(f"Directory {directory} already exists. Re-downloading.")
+            import shutil
+            shutil.rmtree(directory)
+    if not directory.exists():
+        directory.mkdir(parents=True)      
     from huggingface_hub import snapshot_download
     download_files = ["tokenizer*", "generation_config.json", "config.json"]
     if from_safetensors:
@@ -31,12 +44,6 @@ def download_huggingface_model(repo_id: str,
         download_files.append("*.safetensors")
     else:
         download_files.append("*.bin*")
-    if not save_dir:
-        directory = Path("checkpoints") / repo_id
-    else:
-        directory = Path(save_dir)
-        if not directory.exists():
-            directory.mkdir(parents=True)
     typer.echo(f"Saving to {directory}")
     snapshot_download(
         repo_id,
@@ -104,18 +111,18 @@ def convert_hf(source_dir: Path,
                               saver: Optional[incremental_save] = None,
                               dtype: Optional[torch.dtype] = None) -> None:
         weight_map = {
-            "model.embed_tokens.weight": "transformer.wte.weight",
-            "model.layers.{}.input_layernorm.weight": "transformer.h.{}.norm_1.weight",
-            "model.layers.{}.self_attn.q_proj.weight": "transformer.h.{}.attn.q_proj.weight",
-            "model.layers.{}.self_attn.k_proj.weight": "transformer.h.{}.attn.k_proj.weight",
-            "model.layers.{}.self_attn.v_proj.weight": "transformer.h.{}.attn.v_proj.weight",
-            "model.layers.{}.self_attn.o_proj.weight": "transformer.h.{}.attn.o_proj.weight",
+            "model.embed_tokens.weight": "transformer.token_embeddings.weight",
+            "model.layers.{}.input_layernorm.weight": "transformer.blocks.{}.norm_attn.weight",
+            "model.layers.{}.self_attn.q_proj.weight": "transformer.blocks.{}.attn.q_proj.weight",
+            "model.layers.{}.self_attn.k_proj.weight": "transformer.blocks.{}.attn.k_proj.weight",
+            "model.layers.{}.self_attn.v_proj.weight": "transformer.blocks.{}.attn.v_proj.weight",
+            "model.layers.{}.self_attn.o_proj.weight": "transformer.blocks.{}.attn.o_proj.weight",
             "model.layers.{}.self_attn.rotary_emb.inv_freq": None,
-            "model.layers.{}.post_attention_layernorm.weight": "transformer.h.{}.norm_2.weight",
-            "model.layers.{}.mlp.gate_proj.weight": "transformer.h.{}.mlp.fc_1.weight",
-            "model.layers.{}.mlp.up_proj.weight": "transformer.h.{}.mlp.fc_2.weight",
-            "model.layers.{}.mlp.down_proj.weight": "transformer.h.{}.mlp.proj.weight",
-            "model.norm.weight": "transformer.ln_f.weight",
+            "model.layers.{}.post_attention_layernorm.weight": "transformer.blocks.{}.norm_mlp.weight",
+            "model.layers.{}.mlp.gate_proj.weight": "transformer.blocks.{}.mlp.fc_1.weight",
+            "model.layers.{}.mlp.up_proj.weight": "transformer.blocks.{}.mlp.fc_2.weight",
+            "model.layers.{}.mlp.down_proj.weight": "transformer.blocks.{}.mlp.proj.weight",
+            "model.norm.weight": "transformer.norm.weight",
             "lm_head.weight": "lm_head.weight",
         }
 
