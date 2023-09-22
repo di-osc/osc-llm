@@ -1,17 +1,9 @@
-import re
 import sys
 import time
-import warnings
 from pathlib import Path
 from typing import Iterator, List, Literal, Optional, Tuple
-
 import lightning as L
 import torch
-
-# support running without installing as a package
-wd = Path(__file__).parent.parent.resolve()
-sys.path.append(str(wd))
-
 from osc_llm.llm import LlamaConfig, Llama
 from osc_llm.tokenizer import Tokenizer
 from osc_llm.utils import check_valid_checkpoint_dir, get_default_supported_precision, lazy_load, quantization
@@ -111,7 +103,7 @@ def decode(fabric: L.Fabric, tokenizer: Tokenizer, token_stream: Iterator[torch.
 
 
 def main(checkpoint_dir: Path,
-         accelerator: str = "cpu",
+         accelerator: str = "cuda",
          devices: int = 1,
          top_k: int = 200,
          temperature: float = 0.8,
