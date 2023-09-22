@@ -7,7 +7,7 @@ import gc
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Literal
+from typing import Dict, List, Optional, Tuple, Union
 from .utils import NotYetLoadedTensor, incremental_save, lazy_load
 from .llm import LlamaConfig
 from enum import Enum
