@@ -27,7 +27,7 @@ commands:
       - pip install dist/osc_llm-${vars.version}.tar.gz
 
   - name: download
-    help: 下载原始模型
+    help: 下载原始模型,如果已经下载过则不会重复下载
     script:
       - llm download ${vars.repo_id} --save-dir ${vars.chechpoint_dir}
 
