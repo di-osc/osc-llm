@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 import torch.nn as nn
-from typing import Tuple, Optional, Any, List
+from typing import Iterator, Tuple, Optional, Any, List, Union
 import torch
 import math
 from lightning_utilities.core.imports import RequirementCache
 from typing_extensions import Self
+import json
 from ..layer import RMSNorm
-
+from pathlib import Path
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 FlashAttention2Available = RequirementCache("flash-attn>=2.0.0.post1")
@@ -46,15 +47,36 @@ class LlamaConfig:
         conf_dict = name_to_config[name].copy()
         conf_dict.update(kwargs)
         return cls(**conf_dict)
+    
+    @classmethod
+    def from_json(cls, path: Union[str, Path], **kwargs: Any) -> Self:
+        with open(path, encoding="utf-8") as fp:
+            json_kwargs = json.load(fp)
+        json_kwargs.update(kwargs)
+        return cls(**json_kwargs)
 
 
-name_to_config = {"7B": {"name": "llama-7B",
+name_to_config = {"1B": {"name": "llama-7B",
+                         "block_size": 4096, 
+                         "n_layer": 24, 
+                         "n_embd": 2048, 
+                         "n_head": 32, 
+                         "n_query_groups": 24, 
+                         "intermediate_size": 5632},
+                  "7B": {"name": "llama-7B",
                          "block_size": 4096, 
                          "n_layer": 32, 
                          "n_embd": 4096, 
                          "n_head": 32, 
                          "n_query_groups": 32, 
-                         "intermediate_size": 11008}}
+                         "intermediate_size": 11008},
+                  "13B": {"name": "llama-13B",
+                          "block_size": 4096,
+                          "n_layer": 40,
+                          "n_embd": 5120,
+                          "n_head": 40,
+                          "n_query_groups": 40,
+                          "intermediate_size": 13824}}
 
 
 class LlamaMLP(torch.nn.Module):
@@ -165,7 +187,7 @@ class Llama(nn.Module):
             cos, sin = self.build_rope_cache(self.cos.device)
             self.cos = cos
             self.sin = sin 
-                
+                    
     def build_rope_cache(self, device: Optional[torch.device] = None) -> RoPECache:
         return build_rope_cache(seq_len=self.max_seq_length,
                                 n_elem=self.config.head_size,
