@@ -135,8 +135,9 @@ def main(checkpoint_dir: Path,
 
     check_valid_checkpoint_dir(checkpoint_dir)
 
-    with open(checkpoint_dir / "llm_config.json") as fp:
-        config = LlamaConfig()
+    config_path = checkpoint_dir / "llm_config.json"
+    config = LlamaConfig.from_json(path=config_path
+                                   )
     if accelerator == "cpu":
         fabric = L.Fabric(precision=precision, accelerator=accelerator)
     else:
@@ -175,15 +176,14 @@ def main(checkpoint_dir: Path,
         with fabric.init_tensor():
             model.build_kv_caches(batch_size=1)
             
-        y = generate(
-            model,
-            encoded_prompt,
-            max_returned_tokens,
-            max_seq_length=max_returned_tokens,
-            temperature=temperature,
-            top_k=top_k,
-            stop_tokens=stop_tokens,
-        )
+        y = generate(model,
+                     encoded_prompt,
+                     max_returned_tokens,
+                     max_seq_length=max_returned_tokens,
+                     temperature=temperature,
+                     top_k=top_k,
+                     stop_tokens=stop_tokens)
+        
         fabric.print(">> Reply: ", end="")
         try:
             t0 = time.perf_counter()
