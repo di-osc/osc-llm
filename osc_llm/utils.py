@@ -209,11 +209,11 @@ def quantization(mode: Optional[str] = None):
         return
 
     if mode == "bnb.int8":
-        from quantize.bnb import InferenceLinear8bitLt
+        from osc_llm.quantize.bnb import InferenceLinear8bitLt
 
         quantized_linear_cls = InferenceLinear8bitLt
     elif mode == "bnb.fp4":
-        from quantize.bnb import Linear4bit
+        from osc_llm.quantize.bnb import Linear4bit
 
         # Use a class instead `functools.partial` to respect `isinstance` checks and attribute accesses
         class QuantizedLinear(Linear4bit):
@@ -222,7 +222,7 @@ def quantization(mode: Optional[str] = None):
 
         quantized_linear_cls = QuantizedLinear
     elif mode == "bnb.fp4-dq":
-        from quantize.bnb import Linear4bit
+        from osc_llm.quantize.bnb import Linear4bit
 
         class QuantizedLinear(Linear4bit):
             def __init__(self, *args, **kwargs):
@@ -230,7 +230,7 @@ def quantization(mode: Optional[str] = None):
 
         quantized_linear_cls = QuantizedLinear
     elif mode == "bnb.nf4":
-        from quantize.bnb import Linear4bit
+        from osc_llm.quantize.bnb import Linear4bit
 
         class QuantizedLinear(Linear4bit):
             def __init__(self, *args, **kwargs):
@@ -238,7 +238,7 @@ def quantization(mode: Optional[str] = None):
 
         quantized_linear_cls = QuantizedLinear
     elif mode == "bnb.nf4-dq":
-        from quantize.bnb import Linear4bit
+        from osc_llm.quantize.bnb import Linear4bit
 
         class QuantizedLinear(Linear4bit):
             def __init__(self, *args, **kwargs):
@@ -246,7 +246,7 @@ def quantization(mode: Optional[str] = None):
 
         quantized_linear_cls = QuantizedLinear
     elif mode == "gptq.int4":
-        from quantize.gptq import ColBlockQuantizedLinear
+        from osc_llm.quantize.gptq import ColBlockQuantizedLinear
 
         class QuantizedLinear(ColBlockQuantizedLinear):
             def __init__(self, *args, **kwargs):
