@@ -7,10 +7,13 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-bitsandbytes = ">=0.41.1"
+bitsandbytes = {version = ">=0.41.1", optional = true}
 sentencepiece = ">=0.1.99"
 tokenizers = ">=0.13.3"
 huggingface_hub = ">=0.17.1"
+
+[tool.poetry.extras]
+quantize = ["bitsandbytes"]
 
 [tool.poetry.scripts]
 llm = "osc_llm.cli:app"
