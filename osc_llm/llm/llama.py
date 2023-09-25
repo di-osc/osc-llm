@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import torch.nn as nn
-from typing import Iterator, Tuple, Optional, Any, List, Union
+from typing import Tuple, Optional, Any, List, Union
 import torch
 import math
 from lightning_utilities.core.imports import RequirementCache
@@ -56,12 +56,12 @@ class LlamaConfig:
         return cls(**json_kwargs)
 
 
-name_to_config = {"1B": {"name": "llama-7B",
+name_to_config = {"1B": {"name": "llama-1B",
                          "block_size": 4096, 
-                         "n_layer": 24, 
+                         "n_layer": 22, 
                          "n_embd": 2048, 
                          "n_head": 32, 
-                         "n_query_groups": 24, 
+                         "n_query_groups": 32, 
                          "intermediate_size": 5632},
                   "7B": {"name": "llama-7B",
                          "block_size": 4096, 
@@ -76,8 +76,14 @@ name_to_config = {"1B": {"name": "llama-7B",
                           "n_embd": 5120,
                           "n_head": 40,
                           "n_query_groups": 40,
-                          "intermediate_size": 13824}}
-
+                          "intermediate_size": 13824},
+                  "100M": {"name": "llama-100M",
+                           "block_size": 512,
+                           "n_layer": 12,
+                           "n_embd": 768,
+                           "n_head": 12,
+                           "n_query_groups": 12,
+                           "intermediate_size": 768}}
 
 class LlamaMLP(torch.nn.Module):
     def __init__(self, n_embd: int, intermediate_size: int, bias: bool = False):
@@ -136,6 +142,9 @@ class Llama(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+    
+    def reset_parameters(self):
+        self.max_seq_length = self.config.block_size
 
     def forward(self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
         
