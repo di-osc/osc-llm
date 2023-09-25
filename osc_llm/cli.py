@@ -7,7 +7,7 @@ import gc
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from .utils import NotYetLoadedTensor, incremental_save, lazy_load
 from .llm import LlamaConfig
 from enum import Enum
@@ -85,13 +85,19 @@ class Quantize(str, Enum):
     
 @app.command('chat')
 def chat_with_model(checkpoint_dir: Path,
-                    accelerator: Accelerator = Accelerator.cpu,
-                    devices: int = 1,
+                    accelerator: Accelerator = Accelerator.cuda,
+                    devices: str = '0',
                     top_k: int = 200,
                     temperature: float = 0.8,
                     quantize: Optional[Quantize] = None,
                     precision: Optional[str] = None,):
     from .chat import main
+    if ',' in devices:
+        devices = [int(d) for d in devices.split(',')]
+    elif '[' in devices:
+        devices = [int(d) for d in devices[1:-1].split(',')]
+    else:
+        devices = int(devices)
     main(checkpoint_dir=checkpoint_dir, 
          accelerator=accelerator.value,
          devices=devices,

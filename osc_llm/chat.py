@@ -124,12 +124,12 @@ def main(checkpoint_dir: Path,
         precision: Indicates the Fabric precision setting to use.
     """
     precision = precision or get_default_supported_precision(training=False)
-
+    
     check_valid_checkpoint_dir(checkpoint_dir)
-
+    
     config_path = checkpoint_dir / "llm_config.json"
-    config = LlamaConfig.from_json(path=config_path
-                                   )
+    config = LlamaConfig.from_json(path=config_path)
+    
     if accelerator == "cpu":
         fabric = L.Fabric(precision=precision, accelerator=accelerator)
     else:
