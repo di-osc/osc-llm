@@ -7,16 +7,18 @@ from typing import Any, Tuple
 from torch import Tensor
 import torch
 from ..optimizers import get_cosine_lr_scheduler
+from ..utils import build_model
 
 
 class TangShi(Dataset):
     def __init__(self, 
-                 data_dir: Path = Path('data'),
+                 data_dir: str = 'data',
                  block_size: int = 40,
                  download: bool = True,
                  ) -> None:
         super().__init__()
-        self.path = data_dir / "tangshi.txt"
+        self.data_dir = Path(data_dir)
+        self.path = self.data_dir / "tangshi.txt"
         self.block_size = block_size
         if download:
             self.download()
@@ -33,13 +35,13 @@ class TangShi(Dataset):
         return inputs, target
     
     def download(self):
-        if not self.path.exists():
-            self.path.mkdir(parents=True, exist_ok=True)
-            url = 'https://deepasset.oss-cn-beijing.aliyuncs.com/tangshi.txt'
-            with open(self.path, 'w') as f:
-                f.write(requests.get(url).text)
-        else:
+        if not self.data_dir.exists():
+            self.data_dir.mkdir(parents=True)
+        if self.path.exists():
             return
+        url = 'https://deepasset.oss-cn-beijing.aliyuncs.com/tangshi.txt'
+        with open(self.path, 'x') as f:
+            f.write(requests.get(url).text)
             
     def tokenize(self):
         ids = []
@@ -75,15 +77,16 @@ class Vocab():
             self.token2id[token] = len(self.token2id)
             
             
-class LlamaForTangshi(L.LightningModule):
+            
+class TangshiLanguageModel(L.LightningModule):
     def __init__(self,
+                 config: str,
                  lr: float = 1e-4,
                  block_size: int = 100,
-                 batch_size: int = 16,
-                 model_size: str = "1B") -> None:
+                 batch_size: int = 16) -> None:
         super().__init__()
         self.save_hyperparameters()
-        self.model = Llama.from_name(self.hparams.model_size)
+        self.model = build_model(config=config, empty_init=False)
         self.dataset = TangShi(block_size=block_size)
         
     def forward(self, x: Tensor) -> Tensor:

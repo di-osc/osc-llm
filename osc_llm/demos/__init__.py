@@ -1,1 +1,1 @@
-from .language_model import LlamaForTangshi
+from .language_model import TangshiLanguageModel
