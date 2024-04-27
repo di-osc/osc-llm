@@ -1,22 +1,23 @@
 [tool.poetry]
 name = "osc-llm"
 version = "0.1.0"
-description = "复现主流中文大语言模型"
+description = "大模型训练,推理,部署工具"
 authors = ["wangmengdi <790990241@qq.com>"]
+license = "mit"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-bitsandbytes = {version = ">=0.41.1", optional = true}
-sentencepiece = ">=0.1.99"
-tokenizers = ">=0.13.3"
-huggingface_hub = ">=0.17.1"
+python = ">=3.8"
+torch = ">=2.2.0"
+lightning = ">=2.2.0"
+wasabi = ">=1.1.2"
+jsonargparse = ">=4.28.0"
+confection = ">=0.1.4
+catalogue = ">=2.0.10"
 
-[tool.poetry.extras]
-quantize = ["bitsandbytes"]
 
 [tool.poetry.scripts]
-llm = "osc_llm.cli:app"
+llm = "osc_llm.cli:run_cli"
 
 
 [build-system]
