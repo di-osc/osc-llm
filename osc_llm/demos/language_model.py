@@ -6,8 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from typing import Any, Tuple
 from torch import Tensor
 import torch
-from ..llm import Llama
-from ..optim import get_cosine_lr_scheduler
+from ..optimizers import get_cosine_lr_scheduler
 
 
 class TangShi(Dataset):
