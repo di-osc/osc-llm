@@ -3,4 +3,6 @@ dist
 *.pyc
 *.log
 *.checkpoint
-checkpoint
+checkpoints
+data
+lightning_logs
