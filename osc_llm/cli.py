@@ -11,7 +11,6 @@ from wasabi import msg
 from typing import Literal, Optional
 import json
 import torch
-from wasabi import msg
 from lightning_utilities.core.imports import RequirementCache
 import os
 
@@ -28,8 +27,7 @@ def download_huggingface_model(repo_id: str,
     directory = Path(save_dir, repo_id)
     if directory.exists():
         if not force_download:
-            msg.warn(f"Directory {directory} already exists. Use --force-download to re-download.")
-            return
+            msg.fail(f"Directory {directory} already exists. Use --force-download to re-download.", exits=1)
         else:
             msg.info(f"Directory {directory} already exists. Re-downloading.")
             import shutil
@@ -60,14 +58,14 @@ def download_huggingface_model(repo_id: str,
         from safetensors.torch import load_file as safetensors_load
         import torch
 
-        print("Converting .safetensor files to PyTorch binaries (.bin)")
+        msg.info("Converting .safetensor files to PyTorch binaries (.bin)")
         for safetensor_path in directory.glob("*.safetensors"):
             bin_path = safetensor_path.with_suffix(".bin")
             try:
                 result = safetensors_load(safetensor_path)
             except SafetensorError as e:
                 raise RuntimeError(f"{safetensor_path} is likely corrupted. Please try to re-download it.") from e
-            print(f"{safetensor_path} --> {bin_path}")
+            msg.info(f"{safetensor_path} --> {bin_path}")
             torch.save(result, bin_path)
             os.remove(safetensor_path)
 
