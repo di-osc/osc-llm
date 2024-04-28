@@ -148,6 +148,18 @@ def main(
     compile_prefill: bool = False,
     multi_turn: bool = False
 ):
+    """chat with llm
+
+    Args:
+        checkpoint_dir (str): the directory of the model checkpoint
+        device (int, optional): which gpu to use. Defaults to 0.
+        temperature (float, optional): the temperature of the sampling. Defaults to 1.0.
+        top_k (int, optional): the top k sampling. Defaults to 200.
+        max_length (Optional[int], optional): the max length of the generation. Defaults to None.
+        compile (bool, optional): whether to use torch.compile. Defaults to False.
+        compile_prefill (bool, optional): whether to compile prefill model. Defaults to False.
+        multi_turn (bool, optional): whether to use multi-turn chat. Defaults to False.
+    """
     checkpoint_dir: Path = Path(checkpoint_dir)
     fabric = Fabric(devices=[device], accelerator='cuda', precision='bf16-true')
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
@@ -200,11 +212,12 @@ def main(
                       stop_ids=stop_token_ids)
         _, _ = decode(fabric=fabric, tokenizer=tokenizer, token_stream=y, print_steam=False)
         fabric.print(f"Time for warmup: {time.perf_counter() - t:.2f} seconds")
+        fabric.print("\n")
 
     messages = []
     pre_ids_len = 0 # 多轮对话过程中,对之前的对话历史做一个缓存,这样避免在prefill阶段重新kv cache
     while True:
-        content = input("Enter your question (empty to exit): ")
+        content = input("User (empty to exit): ")
         if content == "":
             break
         
@@ -225,6 +238,7 @@ def main(
                      temperature=temperature, 
                      top_k=top_k)
         
+        fabric.print("Assistant: ")
         time0 = time.perf_counter()
         generated_text, num_new_tokens = decode(fabric=fabric, tokenizer=tokenizer, token_stream=y)
         device_sync(device=f"cuda:{device}")
@@ -242,10 +256,4 @@ def main(
         fabric.print("\n")
         fabric.print(f"Generated {num_new_tokens} tokens in {t:.02f} seconds, {(num_new_tokens / t):.2f} tokens/second", file=sys.stderr)
         fabric.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB", file=sys.stderr)
-
-
-if __name__ == "__main__":
-    
-    torch.set_float32_matmul_precision('high')
-    
-    CLI(main)
+        fabric.print("\n")
