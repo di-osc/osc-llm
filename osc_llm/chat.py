@@ -9,7 +9,6 @@ from lightning import Fabric
 import torch
 import time
 import sys
-from jsonargparse import CLI
 from pathlib import Path
 from typing import Optional, Iterator, List
 
@@ -25,7 +24,6 @@ def device_sync(device):
         pass
     else:
         print(f"device={device} is not yet suppported")
-
 
 def prefill(model, input_ids: torch.Tensor, input_pos: torch.Tensor, sampler: Sampler) -> torch.Tensor:
     logits = model(input_ids.view(1, -1), input_pos)[0, -1]
@@ -49,15 +47,6 @@ def generate(
     temperature: float = 1.0,
     top_k: int = 10,
 ):
-    """Generate text from a given prompt using a language model.
-
-    Args:
-        input_ids (torch.Tensor): seq_len
-        model (torch.nn.Module): 
-        max_length (int): 
-        temperature (float, optional): _description_. Defaults to 1.0.
-        k (int, optional): _description_. Defaults to 1.
-    """
     sampler = TopK(k=top_k, temperature=temperature)
     input_ids = prefill(prefill_model, input_ids, input_pos, sampler=sampler)
     yield input_ids
