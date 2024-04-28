@@ -13,3 +13,4 @@ osc-llm旨在成为一个简单易用的大模型训练、评估、部署工具�
 本项目参考了大量的开源项目，特别是以下项目：
 
 - [litgpt](https://github.com/Lightning-AI/litgpt)
+- [gpt-fast](https://github.com/pytorch-labs/gpt-fast)
