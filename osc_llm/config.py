@@ -40,6 +40,12 @@ class registry(confection.registry):
         "samplers", 
         entry_points=True
     )
+    
+    engines = catalogue.create(
+        "osc", 
+        "engines", 
+        entry_points=True
+    )
 
     @classmethod
     def create(cls, registry_name: str, entry_points: bool = False) -> None:
