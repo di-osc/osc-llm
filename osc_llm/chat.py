@@ -10,7 +10,7 @@ import torch
 import time
 import sys
 from pathlib import Path
-from typing import Optional, Iterator, List
+from typing import Optional, List
 
 
 
@@ -68,42 +68,6 @@ def generate(
                 yield_ids = []
         input_pos = input_pos.add_(1)
         input_ids = next_token_id
-            
-            
-def decode(fabric: Fabric, tokenizer: Tokenizer, token_stream: Iterator[torch.Tensor], print_steam: bool = True) -> int:
-    if tokenizer.backend == "huggingface":
-        text = ''
-        tokens = []
-        try:
-            for token in token_stream:
-                t = tokenizer.decode(token)
-                if print_steam:
-                    fabric.print(t, end="", flush=True)
-                text += t
-                tokens.append(t)
-            return text, len(tokens)
-        except KeyboardInterrupt:
-            # support stopping generation
-            return text, len(tokens)
-    elif tokenizer.backend == "sentencepiece":
-        # sentencepiece does not support decoding token-by-token because it adds spaces based on the surrounding tokens
-        # meaning that we need to decode everything each time
-        so_far = torch.tensor([], dtype=torch.long, device=fabric.device)
-        decoded_so_far = ""
-        try:
-            for token in token_stream:
-                so_far = so_far.to(device=token.device)
-                so_far = torch.cat((so_far, token.view(-1)))
-                decoded_new = tokenizer.decode(so_far)
-                if print_steam:
-                    fabric.print(decoded_new[len(decoded_so_far) :], end="", flush=True)
-                decoded_so_far = decoded_new
-            return decoded_so_far, len(so_far.tolist())
-        except KeyboardInterrupt:
-            # support stopping generation
-            return decoded_so_far, len(so_far.tolist())
-    else:
-        raise NotImplementedError(tokenizer.backend)
 
 
 def load_model(fabric: Fabric, checkpoint_dir: str):
@@ -199,7 +163,7 @@ def main(
                       decode_model=decode_model, 
                       max_length=512, 
                       stop_ids=stop_token_ids)
-        _, _ = decode(fabric=fabric, tokenizer=tokenizer, token_stream=y, print_steam=False)
+        _ = tokenizer.decode_stream(stream=y)
         fabric.print(f"Time for warmup: {time.perf_counter() - t:.2f} seconds")
         fabric.print("\n")
 
@@ -229,7 +193,7 @@ def main(
         
         fabric.print("Assistant: ")
         time0 = time.perf_counter()
-        generated_text, num_new_tokens = decode(fabric=fabric, tokenizer=tokenizer, token_stream=y)
+        generated_text = tokenizer.decode_stream(stream=y, print_stream=True)
         device_sync(device=f"cuda:{device}")
         time1 = time.perf_counter()
         t = time1 - time0
