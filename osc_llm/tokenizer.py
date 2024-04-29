@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Iterator
 import torch
 
 
@@ -107,6 +107,45 @@ class Tokenizer:
     def decode(self, tensor: torch.Tensor) -> str:
         tokens = [tensor.item()] if tensor.ndim == 0 else tensor.tolist()
         return self.processor.decode(tokens)
+    
+    def decode_stream(
+        self,
+        stream: Iterator[torch.Tensor],
+        print_stream: bool = False,
+    ) -> str:
+        if self.backend == "huggingface":
+            text = ''
+            tokens = []
+            try:
+                for token in stream:
+                    t = self.decode(token)
+                    if print_stream:
+                        print(t, end="", flush=True)
+                    text += t
+                    tokens.append(t)
+                return text
+            except KeyboardInterrupt:
+                # support stopping generation
+                return text
+        elif self.backend == "sentencepiece":
+            # sentencepiece does not support decoding token-by-token because it adds spaces based on the surrounding tokens
+            # meaning that we need to decode everything each time
+            so_far = torch.tensor([], dtype=torch.long)
+            decoded_so_far = ""
+            try:
+                for token in stream:
+                    so_far = so_far.to(device=token.device)
+                    so_far = torch.cat((so_far, token.view(-1)))
+                    decoded_new = self.decode(so_far)
+                    if print_stream:
+                        print(decoded_new[len(decoded_so_far) :], end="", flush=True)
+                    decoded_so_far = decoded_new
+                return decoded_so_far
+            except KeyboardInterrupt:
+                # support stopping generation
+                return decoded_so_far
+        else:
+            raise NotImplementedError(self.backend)
     
     def save(self, save_dir: str):
         save_dir = Path(save_dir)
