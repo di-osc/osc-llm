@@ -4,7 +4,7 @@ from ..architectures import TransformerDecoder
 from ..config import Config, registry
 import torch
 from torch.nn.attention import sdpa_kernel, SDPBackend
-from typing import List, Iterator
+from typing import List, Generator
 from pathlib import Path
 
 
@@ -47,7 +47,7 @@ class LLMEngineV1(LLMEngine):
         self.model = self.fabric.setup_module(self.model)
     
     @torch.inference_mode()
-    def run(self, stop_ids: List[torch.Tensor], **model_inputs) -> Iterator[str]:
+    def run(self, stop_ids: List[torch.Tensor], **model_inputs) -> Generator[str]:
         
         max_length = self.max_length if self.max_length else self.model.block_size
         input_ids = self.prefill(**model_inputs)
