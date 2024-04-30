@@ -11,6 +11,7 @@ import time
 import sys
 from pathlib import Path
 from typing import Optional, List
+from torch.nn.attention import sdpa_kernel, SDPBackend
 
 
 
@@ -54,7 +55,7 @@ def generate(
     max_stop_len = max([len(stop_id) for stop_id in stop_ids])
     yield_ids = []
     for i in range(1, max_length - input_pos.item() + 1):
-        with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_mem_efficient=False, enable_math=True):
+        with sdpa_kernel(backends=[SDPBackend.MATH]):
             input_ids = input_ids.view(1, -1)
             next_token_id = decode_one_token(model=decode_model, input_ids=input_ids, input_pos=input_pos, sampler=sampler)
             yield_ids.append(next_token_id)
