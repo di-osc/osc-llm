@@ -50,7 +50,8 @@ class LLMEngineV2(LLMEngine):
         torch._dynamo.config.suppress_errors = True
         self.decode_model: TransformerDecoder = torch.compile(self.decode_model, mode="reduce-overhead", fullgraph=True)
         self.prefill_model: TransformerDecoder = torch.compile(self.prefill_model, dynamic=True)
-        
+    
+    def setup_model(self) -> None:
         self.prefill_model = self.fabric.setup_module(self.prefill_model)
         self.decode_model = self.fabric.setup_module(self.decode_model)
     
@@ -59,7 +60,7 @@ class LLMEngineV2(LLMEngine):
         
         # 确保输入在设备上
         input_ids = self.fabric.to_device(input_ids)
-        if not input_pos:
+        if input_pos is None:
             input_pos = self.fabric.to_device(torch.arange(len(input_ids)))
         stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
         

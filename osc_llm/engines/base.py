@@ -18,7 +18,6 @@ class LLMEngine(ABC):
         devices: Union[int, List[int]] = 1,
         accelerator: str = "auto",
         compile: bool = True,
-        warmup: bool = False
     ):
 
         self.fabric = Fabric(devices=devices, accelerator=accelerator, precision="bf16-true")
@@ -27,7 +26,6 @@ class LLMEngine(ABC):
         self.max_length = max_length
         
         self.compile = compile
-        self.warmup = warmup
         
         self.checkpoint_dir = checkpoint_dir
     
@@ -38,7 +36,7 @@ class LLMEngine(ABC):
     def compile_model(self) -> None:
         raise NotImplementedError
     
-    def warmup_model(self) -> None:
+    def setup_model(self) -> None:
         raise NotImplementedError
     
     @abstractmethod
@@ -53,10 +51,9 @@ class LLMEngine(ABC):
             t = perf_counter()
             self.compile_model()
             self.fabric.print(f"compile model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
-        if self.warmup:
-            t = perf_counter()
-            self.warmup_model()
-            self.fabric.print(f"warmup model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
+        t = perf_counter()
+        self.setup_model()
+        self.fabric.print(f"setup model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
             
     def reset_sampler(self, sampler: Sampler) -> None:
         self.sampler = sampler

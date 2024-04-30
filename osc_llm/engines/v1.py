@@ -43,7 +43,8 @@ class LLMEngineV1(LLMEngine):
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
         self.model: TransformerDecoder = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
-        
+    
+    def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
     
     @torch.inference_mode()
@@ -51,7 +52,7 @@ class LLMEngineV1(LLMEngine):
         
         # 确保输入在设备上
         input_ids = self.fabric.to_device(input_ids)
-        if not input_pos:
+        if input_pos is None:
             input_pos = self.fabric.to_device(torch.arange(len(input_ids)))
         stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
         
