@@ -1,11 +1,15 @@
 import json
 from pathlib import Path
-from typing import Optional, Union, Generator
+from typing import Optional, Union, Generator, List
 import torch
+from .chat_templates import ChatTemplate, Message
 
 
 class Tokenizer:
-    def __init__(self, checkpoint_dir: Union[Path, str]) -> None:
+    def __init__(self, 
+                 checkpoint_dir: Union[Path, str],
+                 chat_template: Optional[ChatTemplate] = None,
+                 ) -> None:
         checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir = checkpoint_dir
         if not checkpoint_dir.exists():
@@ -14,6 +18,8 @@ class Tokenizer:
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
+        
+        self.chat_template = chat_template if chat_template else ChatTemplate.from_checkpoint(checkpoint_dir)
 
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():
@@ -103,6 +109,17 @@ class Tokenizer:
         if max_length > 0:
             tokens = tokens[:max_length]
         return torch.tensor(tokens, dtype=torch.int, device=device)
+    
+    def encode_messages(self, 
+                        messages: List[Message], 
+                        device: Optional[torch.device] = None,
+                        bos: Optional[bool] = None,
+                        eos: bool = False,
+                        max_length: int = -1,
+                        ) -> torch.Tensor:
+        assert self.chat_template, "Chat template is required for encoding messages"
+        string = self.chat_template.apply_messages(messages)
+        return self.encode(string, device, bos, eos, max_length)
 
     def decode(self, tensor: torch.Tensor) -> str:
         tokens = [tensor.item()] if tensor.ndim == 0 else tensor.tolist()
@@ -110,8 +127,8 @@ class Tokenizer:
     
     def decode_stream(
         self,
-        stream: Generator[torch.Tensor],
-    ) -> Generator[str]:
+        stream: Generator[torch.Tensor, None, None],
+    ) -> Generator[str, None, None]:
         if self.backend == "huggingface":
             text = ''
             try:
@@ -151,3 +168,10 @@ class Tokenizer:
             shutil.copyfile(self.generation_config_path, save_dir / self.generation_config_path.name)
         if self.backend == "sentencepiece":
             shutil.copyfile(self.tokenizer_path, save_dir / self.tokenizer_path.name)
+            
+    @property
+    def stop_ids(self) -> List[List[int]]:
+        stop_ids = [[torch.tensor([self.eos_id], dtype=torch.int)]]
+        if self.chat_template:
+            stop_ids.extend([[self.encode(text)] for text in self.chat_template.stop_texts])
+        return stop_ids

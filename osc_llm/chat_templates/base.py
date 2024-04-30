@@ -2,7 +2,6 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel
 from pathlib import Path
 from ..config import registry, Config
-from ..tokenizer import Tokenizer
 
 
 
@@ -27,10 +26,6 @@ class ChatTemplate():
             messages.append(Message(role="system", content=cls.default_system))
         messages.append(Message(role="user", content=user))
         return cls.apply_messages(messages)
-    
-    @classmethod
-    def get_stop_tokens(cls, tokenizer: Tokenizer):
-        raise NotImplementedError
 
     def get_config(self) -> Config:
         for k, v in registry.chat_templates.get_all().items():
@@ -44,6 +39,7 @@ class ChatTemplate():
     
     @classmethod
     def from_name(cls, name: str) -> "ChatTemplate":
+        template_cls = None
         for k, v in registry.chat_templates.get_all().items():
             if k in name:
                 template_cls = v
