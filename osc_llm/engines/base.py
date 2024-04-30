@@ -1,11 +1,12 @@
-from typing import Union, List, Iterator, Optional
+from typing import Union, List, Optional, Generator
 from lightning import Fabric
 from time import perf_counter
 import sys
 from ..samplers import Sampler, TopK
+from abc import ABC, abstractmethod
 
 
-class LLMEngine:
+class LLMEngine(ABC):
     """语言模型引擎: 控制着大模型加载,编译,运转以及停止。
     """
     
@@ -30,6 +31,7 @@ class LLMEngine:
         
         self.checkpoint_dir = checkpoint_dir
     
+    @abstractmethod
     def load_model(self) -> None:
         raise NotImplementedError
     
@@ -39,7 +41,8 @@ class LLMEngine:
     def warmup_model(self) -> None:
         raise NotImplementedError
     
-    def run(self, **model_inputs) -> Iterator[str]:
+    @abstractmethod
+    def run(self, **model_inputs) -> Generator[str, None, None]:
         raise NotImplementedError
     
     def setup(self) -> None:

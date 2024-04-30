@@ -4,7 +4,7 @@ from ..architectures import TransformerDecoder
 from ..config import Config, registry
 import torch
 from torch.nn.attention import sdpa_kernel, SDPBackend
-from typing import List, Generator
+from typing import List, Generator, Optional
 from pathlib import Path
 
 
@@ -42,17 +42,26 @@ class LLMEngineV1(LLMEngine):
         torch._inductor.config.fx_graph_cache = True # Experimental feature to reduce compilation times, will be on by default in future
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
-        self.model: TransformerDecoder = torch.compile(self.model, dynamic=True)
+        self.model: TransformerDecoder = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
         
         self.model = self.fabric.setup_module(self.model)
     
     @torch.inference_mode()
-    def run(self, stop_ids: List[torch.Tensor], **model_inputs) -> Generator[str]:
+    def run(self, input_ids: torch.Tensor, stop_ids: List[torch.Tensor], input_pos: Optional[torch.Tensor] = None) -> Generator[str, None, None]:
+        
+        # 确保输入在设备上
+        input_ids = self.fabric.to_device(input_ids)
+        if not input_pos:
+            input_pos = self.fabric.to_device(torch.arange(len(input_ids)))
+        stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
         
         max_length = self.max_length if self.max_length else self.model.block_size
-        input_ids = self.prefill(**model_inputs)
+        
+        # prefill
+        input_ids = self.prefill(input_ids=input_ids.view(1, -1), input_pos=input_pos)
         yield input_ids
-        input_pos = model_inputs["input_pos"]
+        
+        # decode
         with self.fabric.init_tensor():
             input_pos = torch.tensor([input_pos[-1].item() + 1])
         max_stop_len = max([len(stop_id) for stop_id in stop_ids])
