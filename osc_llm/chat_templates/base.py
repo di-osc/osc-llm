@@ -1,5 +1,6 @@
 from typing import List, Literal, Optional
 from pydantic import BaseModel
+from pathlib import Path
 from ..config import registry, Config
 from ..tokenizer import Tokenizer
 
@@ -40,3 +41,15 @@ class ChatTemplate():
         @chat_templates = {name}"""
         config = Config().from_str(config_str)
         return config
+    
+    @classmethod
+    def from_name(cls, name: str) -> "ChatTemplate":
+        for k, v in registry.chat_templates.get_all().items():
+            if k in name:
+                template_cls = v
+        return template_cls
+    
+    @classmethod
+    def from_checkpoint(cls, checkpoint_dir: str) -> "ChatTemplate":
+        checkpoint_dir = Path(checkpoint_dir)
+        return cls.from_name(checkpoint_dir.stem)
