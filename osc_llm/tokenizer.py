@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Optional, Union, Iterator
+from typing import Optional, Union, Generator
 import torch
 
 
@@ -110,20 +110,15 @@ class Tokenizer:
     
     def decode_stream(
         self,
-        stream: Iterator[torch.Tensor],
-        print_stream: bool = False,
-    ) -> str:
+        stream: Generator[torch.Tensor],
+    ) -> Generator[str]:
         if self.backend == "huggingface":
             text = ''
-            tokens = []
             try:
                 for token in stream:
                     t = self.decode(token)
-                    if print_stream:
-                        print(t, end="", flush=True)
+                    yield t
                     text += t
-                    tokens.append(t)
-                return text
             except KeyboardInterrupt:
                 # support stopping generation
                 return text
@@ -137,10 +132,8 @@ class Tokenizer:
                     so_far = so_far.to(device=token.device)
                     so_far = torch.cat((so_far, token.view(-1)))
                     decoded_new = self.decode(so_far)
-                    if print_stream:
-                        print(decoded_new[len(decoded_so_far) :], end="", flush=True)
+                    yield decoded_new[len(decoded_so_far):]
                     decoded_so_far = decoded_new
-                return decoded_so_far
             except KeyboardInterrupt:
                 # support stopping generation
                 return decoded_so_far
