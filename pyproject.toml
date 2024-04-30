@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osc-llm"
-version = "0.1.0"
+version = "0.1.1"
 description = "大模型训练,推理,部署工具"
 authors = ["wangmengdi <790990241@qq.com>"]
 license = "mit"
@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8"
-torch = ">=2.2.0"
+torch = ">=2.3.0"
 lightning = ">=2.2.0"
 wasabi = ">=1.1.2"
 jsonargparse = ">=4.28.0"
