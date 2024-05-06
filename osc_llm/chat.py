@@ -7,6 +7,7 @@ import time
 import sys
 from pathlib import Path
 from typing import Optional, Literal
+from itertools import chain
 
 
 
@@ -54,7 +55,11 @@ def main(
                                         compile=compile)
     engine.setup()
     
-            
+    if not hasattr(engine, "decode_model"):
+        model_size = sum([p.numel() * p.dtype.itemsize for p in chain(engine.model.parameters(), engine.model.buffers())])
+    else:
+        model_size = sum([p.numel() * p.dtype.itemsize for p in chain(engine.decode_model.parameters(), engine.decode_model.buffers())])
+    
     if compile:
         t = time.perf_counter()
         input_ids = tokenizer.encode_messages([Message(role='user', content="你好")])
@@ -62,8 +67,8 @@ def main(
         token_stream = tokenizer.decode_stream(stream=stream)
         for token in token_stream:
             pass
-        print(f"Time for warmup: {time.perf_counter() - t:.2f} seconds")
-        print("\n")
+        engine.fabric.print(f"Time for warmup: {time.perf_counter() - t:.2f} seconds")
+        engine.fabric.print("\n")
 
     messages = []
     pre_ids_len = 0 # 多轮对话过程中,对之前的对话历史做一个缓存,这样避免在prefill阶段重新kv cache
@@ -80,7 +85,7 @@ def main(
         
         stream = engine.run(input_ids=input_ids, stop_ids=tokenizer.stop_ids, input_pos=input_pos)
         generated_text = ""
-        print("Assistant: ")
+        engine.fabric.print("Assistant: ")
         time0 = time.perf_counter()
         token_stream = tokenizer.decode_stream(stream=stream)
         for token in token_stream:
@@ -89,6 +94,7 @@ def main(
         time1 = time.perf_counter()
         t = time1 - time0
         num_new_tokens = len(tokenizer.encode(generated_text).tolist())
+        tokens_sec = num_new_tokens / t
         
         if multi_turn:
             messages.append(Message(role='assistant', content=generated_text))
@@ -97,7 +103,8 @@ def main(
             messages = []
             pre_ids_len = 0
         
-        print("\n")
-        print(f"Generated {num_new_tokens} tokens in {t:.02f} seconds, {(num_new_tokens / t):.2f} tokens/second", file=sys.stderr)
-        print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB", file=sys.stderr)
-        print("\n")
+        engine.fabric.print("\n")
+        engine.fabric.print(f"Generated {num_new_tokens} tokens in {t:.02f} seconds, {(num_new_tokens / t):.2f} tokens/second", file=sys.stderr)
+        engine.fabric.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
+        engine.fabric.print(f"Bandwidth: {model_size * tokens_sec / 1e9:.02f} GB/s")
+        engine.fabric.print("\n")
