@@ -19,7 +19,6 @@ class ErrorResponse(BaseModel):
     param: Optional[str] = None
     code: int
 
-
 class ModelPermission(BaseModel):
     id: str = Field(default_factory=lambda: f"modelperm-{random_uuid()}")
     object: str = "model_permission"
