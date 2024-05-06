@@ -4,6 +4,7 @@ from typing import Optional, Union, Dict, Tuple
 from wasabi import msg
 import statistics
 import torch
+import uuid
 
 
 
@@ -144,3 +145,7 @@ def get_default_supported_precision(training: bool) -> str:
     if MPSAccelerator.is_available() or (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()):
         return "16-mixed" if training else "16-true"
     return "bf16-mixed" if training else "bf16-true"
+
+
+def random_uuid() -> str:
+    return str(uuid.uuid4().hex)
