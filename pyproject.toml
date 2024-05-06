@@ -14,6 +14,8 @@ wasabi = ">=1.1.2"
 jsonargparse = ">=4.28.0"
 confection = ">=0.1.4"
 catalogue = ">=2.0.10"
+sentencepiece = ">=0.2.0"
+tokenizers  = ">=0.19.1"
 
 
 [tool.poetry.scripts]
