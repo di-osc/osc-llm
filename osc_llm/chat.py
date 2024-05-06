@@ -106,5 +106,5 @@ def main(
         engine.fabric.print("\n")
         engine.fabric.print(f"Generated {num_new_tokens} tokens in {t:.02f} seconds, {(num_new_tokens / t):.2f} tokens/second", file=sys.stderr)
         engine.fabric.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
-        engine.fabric.print(f"Bandwidth: {model_size * tokens_sec / 1e9:.02f} GB/s")
+        engine.fabric.print(f"Bandwidth Achieved: {model_size * tokens_sec / 1e9:.02f} GB/s")
         engine.fabric.print("\n")
