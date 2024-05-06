@@ -5,6 +5,7 @@ import sys
 from ..samplers import Sampler, TopK
 from abc import ABC, abstractmethod
 import torch
+from ..utils import get_default_supported_precision
 
 
 class LLMEngine(ABC):
@@ -19,9 +20,12 @@ class LLMEngine(ABC):
         devices: Union[int, List[int]] = 1,
         accelerator: str = "auto",
         compile: bool = True,
+        precision: Optional[str] = None
     ):
 
-        self.fabric = Fabric(devices=devices, accelerator=accelerator, precision="bf16-true")
+        if not precision:
+            precision = get_default_supported_precision(training=False)
+        self.fabric = Fabric(devices=devices, accelerator=accelerator, precision=precision)
         
         self.sampler = sampler if sampler else TopK(temperature=0.8, k=200)
         self.max_length = max_length
