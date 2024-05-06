@@ -1,5 +1,6 @@
 from jsonargparse import CLI 
 from .chat import main as chat_main
+from .servers.openai import main as openai_main
 from .model_helpers import get_supported_architectures
 from .model_helpers.base import HFModelHelper
 from .quantizers import WeightOnlyInt8Quantizer, WeightOnlyInt4Quantizer
@@ -166,7 +167,8 @@ commands = {
     "quantize": {
         "int8": quantize_int8,
         "int4": quantize_int4
-    }
+    },
+    "serve": openai_main
 }
 
 
