@@ -12,22 +12,6 @@ def find_multiple(n: int, k: int) -> int:
     if n % k == 0:
         return n
     return n + k - (n % k)
-
-
-def get_default_supported_precision(training: bool) -> str:
-    """Return default precision that is supported by the hardware.
-
-    Args:
-        training: `-mixed` or `-true` version of the precision to use
-        tpu: whether TPU device is used
-
-    Returns:
-        default precision that is suitable for the task and is supported by the hardware
-    """
-    
-    if not torch.cuda.is_available() or torch.cuda.is_bf16_supported():
-        return "bf16-mixed" if training else "bf16-true"
-    return "16-mixed" if training else "16-true"
         
         
 def get_chat_template(name) -> Optional[Config]:
@@ -144,3 +128,19 @@ def benchmark(model, num_iters=10, **inputs):
     msg.info(f"Mean time: {mean_time:.4f} s")
     median_time = statistics.median(times)
     msg.info(f"Median time: {median_time:.4f} s")
+    
+
+def get_default_supported_precision(training: bool) -> str:
+    """Return default precision that is supported by the hardware: either `bf16` or `16`.
+
+    Args:
+        training: `-mixed` or `-true` version of the precision to use
+
+    Returns:
+        default precision that is suitable for the task and is supported by the hardware
+    """
+    from lightning.fabric.accelerators import MPSAccelerator
+
+    if MPSAccelerator.is_available() or (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()):
+        return "16-mixed" if training else "16-true"
+    return "bf16-mixed" if training else "bf16-true"
