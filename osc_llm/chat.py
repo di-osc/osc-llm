@@ -4,7 +4,6 @@ from .samplers import TopK
 from .engines import LLMEngineV1, LLMEngine, LLMEngineV2
 import torch
 import time
-import sys
 from pathlib import Path
 from typing import Optional, Literal
 from itertools import chain
