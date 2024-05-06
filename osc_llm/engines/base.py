@@ -4,6 +4,7 @@ from time import perf_counter
 import sys
 from ..samplers import Sampler, TopK
 from abc import ABC, abstractmethod
+import torch
 
 
 class LLMEngine(ABC):
@@ -40,7 +41,7 @@ class LLMEngine(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def run(self, **model_inputs) -> Generator[str, None, None]:
+    def run(self, **model_inputs) -> Generator[torch.Tensor, None, None]:
         raise NotImplementedError
     
     def setup(self) -> None:
