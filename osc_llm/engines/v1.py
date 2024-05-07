@@ -40,10 +40,14 @@ class LLMEngineV1(LLMEngine):
         torch._inductor.config.coordinate_descent_tuning = True
         torch._inductor.config.triton.unique_kernel_names = True
         torch._inductor.config.fx_graph_cache = True # Experimental feature to reduce compilation times, will be on by default in future
+        torch._inductor.config.triton.cudagraph_trees = False # 目前用作server的时候有bug
+        
         torch._dynamo.config.automatic_dynamic_shapes = True
-        torch._dynamo.config.suppress_errors = True
+        
+        
         self.model: TransformerDecoder = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
-    
+
+        
     def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
     
@@ -83,13 +87,11 @@ class LLMEngineV1(LLMEngine):
             input_pos = input_pos.add_(1)
             input_ids = next_token_id
         
-    @torch.inference_mode()
     def prefill(self, **model_inputs) -> torch.Tensor:
         logits = self.model(**model_inputs)[0, -1]
         idx = self.sampler.sample(logits=logits)
         return idx
     
-    @torch.inference_mode()
     def decode(self, **model_inputs) -> torch.Tensor:
         logits = self.model(**model_inputs)[0, -1]
         idx = self.sampler.sample(logits=logits)
