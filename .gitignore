@@ -6,3 +6,4 @@ dist
 checkpoints
 data
 lightning_logs
+*.lock
