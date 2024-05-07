@@ -1,4 +1,4 @@
-from ..engines import LLMEngineV2
+from ..engines import LLMEngineV2, LLMEngineV1
 from ..tokenizer import Tokenizer
 from ..chat_templates import Message
 from ..utils import random_uuid
@@ -118,10 +118,21 @@ class ChatCompletionRequest(BaseModel):
     
     
 def main(checkpoint_dir: str,
+         engine: Literal['v1', 'v2'] = 'v1',
          accelerator: Literal['cuda', 'cpu', 'gpu', 'auto'] = 'cuda',
          devices: Union[int, List[int]] = 1,
          host: str = '0.0.0.0',
          port: int = 8000):
+    """openai接口服务
+
+    Args:
+        checkpoint_dir (str): checkpoint目录
+        engine (Literal[&#39;v1&#39;, &#39;v2&#39;], optional): LLMEngine版本. Defaults to 'v2'.
+        accelerator (Literal[&#39;cuda&#39;, &#39;cpu&#39;, &#39;gpu&#39;, &#39;auto&#39;], optional): 推理硬件. Defaults to 'cuda'.
+        devices (Union[int, List[int]], optional): 设备数量或者设备的ID. Defaults to 1.
+        host (str, optional): 主机地址. Defaults to '0.0.0.0'.
+        port (int, optional): 端口号. Defaults to 8000.
+    """
     
     app = FastAPI()
     
@@ -158,17 +169,22 @@ def main(checkpoint_dir: str,
                                                   usage=UsageInfo(prompt_tokens=prompt_tokens, total_tokens=total_tokens, completion_tokens=completion_tokens))
             return JSONResponse(content=response.model_dump_json(exclude_unset=True))
     
-    
-    engine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator)
+    if engine == 'v1':
+        engine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator)
+    else:
+        engine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator)
     engine.setup()
     tokenizer = Tokenizer(checkpoint_dir)
     
     warmup_messages = [[Message(role='user', content="你好")], [Message(role='user', content="介绍一下你自己")]]
+    engine.fabric.print("Warming up engine that may take one or two minutes...")
+    start_time = time.perf_counter()
     for messages in warmup_messages:
         input_ids = tokenizer.encode_messages(messages)
         stream = engine.run(input_ids=input_ids, stop_ids=tokenizer.stop_ids)
         stream_tokens = tokenizer.decode_stream(stream=stream)
         for token in stream_tokens:
             pass
+    engine.fabric.print(f"Engine warmup finished in {time.perf_counter() - start_time:.2f}s")
     
     uvicorn.run(app=app, host=host, port=port)
