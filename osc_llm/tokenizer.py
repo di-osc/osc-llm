@@ -130,12 +130,17 @@ class Tokenizer:
         stream: Generator[torch.Tensor, None, None],
     ) -> Generator[str, None, None]:
         if self.backend == "huggingface":
+            buffer = torch.tensor([], dtype=torch.long)
             text = ''
             try:
                 for token in stream:
-                    t = self.decode(token)
-                    yield t
-                    text += t
+                    buffer = buffer.to(device=token.device)
+                    buffer = torch.cat((buffer, token.view(-1)))
+                    t = self.decode(buffer)
+                    if not self.has_special_chars(t):
+                        yield t
+                        text += t
+                        buffer = torch.tensor([], dtype=torch.long)
             except KeyboardInterrupt:
                 # support stopping generation
                 return text
@@ -149,6 +154,9 @@ class Tokenizer:
                     so_far = so_far.to(device=token.device)
                     so_far = torch.cat((so_far, token.view(-1)))
                     decoded_new = self.decode(so_far)
+                    if self.has_special_chars(decoded_new):
+                        # if the text contains special characters, it means that the tokenization is not complete
+                        continue
                     yield decoded_new[len(decoded_so_far):]
                     decoded_so_far = decoded_new
             except KeyboardInterrupt:
@@ -175,3 +183,9 @@ class Tokenizer:
         if self.chat_template:
             stop_ids.extend([[self.encode(text)] for text in self.chat_template.stop_texts])
         return stop_ids
+    
+    def has_special_chars(self, text: str) -> bool:
+        """使用sentencepiece时，检查文本中是否包含特殊字符�.这种情况通常是由于一个中文字符被分割为几个token,而解码时没有合并回去导致的.
+        """
+        return '�' in text
+        
