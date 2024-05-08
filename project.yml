@@ -1,7 +1,7 @@
 title: project-demo
 description: describe project details
 vars:
-  version: 0.1.1
+  version: 0.1.3
   chechpoint_dir: checkpoints
   temperature: 0.8
 check_requirements: false
