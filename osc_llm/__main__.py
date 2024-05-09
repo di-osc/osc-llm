@@ -3,7 +3,7 @@ from .chat import main as chat_main
 from .servers.openai import main as openai_main
 from .model_helpers import get_supported_architectures
 from .model_helpers.base import HFModelHelper
-from .quantizers import WeightOnlyInt8Quantizer, WeightOnlyInt4Quantizer
+from .quantizers import Int8Quantizer, WeightOnlyInt4Quantizer
 from .tokenizer import Tokenizer
 from .config import registry
 from .utils import build_from_checkpoint
@@ -114,7 +114,7 @@ def quantize_int8(checkpoint_dir: str, save_dir: str):
         save_dir.mkdir(parents=True)
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
     model, config = build_from_checkpoint(checkpoint_dir=checkpoint_dir, return_config=True)
-    quantizer = WeightOnlyInt8Quantizer()
+    quantizer = Int8Quantizer()
     model = quantizer.quantize(model)
     config = config.merge(quantizer.quantizer_config)
     torch.save(model.state_dict(), Path(save_dir) / "osc_model.pth")
