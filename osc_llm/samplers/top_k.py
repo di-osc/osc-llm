@@ -11,12 +11,11 @@ class TopK(Sampler):
         temperature: float = 1.0,
         ) -> None:
         super().__init__()
-        assert temperature >= 0
-        self.temperature = temperature
+        self.temperature = 0.001 if temperature <=0 else temperature
         self.k = k 
         
     def logits_to_probs(self, logits: torch.Tensor) -> torch.Tensor:
-        logits = logits / min(self.temperature, 1e-5)
+        logits = logits / self.temperature
         values, indices = torch.topk(logits, min(self.k, logits.shape[-1]), dim=-1)
         logits = torch.full_like(logits, float("-inf")).scatter_(-1, indices, values)
         probs = torch.softmax(logits, dim=-1)
