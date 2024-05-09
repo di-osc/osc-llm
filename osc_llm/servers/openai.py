@@ -128,7 +128,7 @@ def main(checkpoint_dir: str,
 
     Args:
         checkpoint_dir (str): checkpoint目录
-        engine (Literal[&#39;v1&#39;, &#39;v2&#39;], optional): LLMEngine版本. Defaults to 'v2'.
+        engine (Literal[&#39;v1&#39;, &#39;v2&#39;], optional): LLMEngine版本. Defaults to 'v1'.
         accelerator (Literal[&#39;cuda&#39;, &#39;cpu&#39;, &#39;gpu&#39;, &#39;auto&#39;], optional): 推理硬件. Defaults to 'cuda'.
         devices (Union[int, List[int]], optional): 设备数量或者设备的ID. Defaults to 1.
         host (str, optional): 主机地址. Defaults to '0.0.0.0'.
