@@ -169,7 +169,7 @@ def main(checkpoint_dir: str,
                                                   model=request.model,
                                                   choices=[ChatCompletionResponseChoice(index=0, message=ChatMessage(role='assistant', content=content))],
                                                   usage=UsageInfo(prompt_tokens=prompt_tokens, total_tokens=total_tokens, completion_tokens=completion_tokens))
-            return JSONResponse(content=response.model_dump_json(exclude_unset=True))
+            return JSONResponse(content=response.model_dump(exclude_unset=True))
     
     if engine == 'v1':
         engine: LLMEngine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile)
