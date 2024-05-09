@@ -12,8 +12,8 @@ def Linear(n_in: int, n_out: int, bias: bool = True):
     return nn.Linear(in_features=n_in, out_features=n_out, bias=bias)
 
 
-@registry.layers.register("WeightOnlyInt8Linear")
-class WeightOnlyInt8Linear(nn.Module):
+@registry.layers.register("Int8Linear")
+class Int8Linear(nn.Module):
     """用于量化的Linear层，只包含weight和scales两个参数"""
     __contains__ = ["in_features", "out_features"]
     in_features: int
@@ -24,6 +24,7 @@ class WeightOnlyInt8Linear(nn.Module):
         self,
         in_features: int,
         out_features: int,
+        bias: bool = False
     ):
         super().__init__()
         
@@ -31,11 +32,20 @@ class WeightOnlyInt8Linear(nn.Module):
         self.out_features = out_features
         self.register_buffer("weight", torch.empty((out_features, in_features), dtype=torch.int8))
         self.register_buffer("scales", torch.ones(out_features, dtype=torch.bfloat16))
+        if bias:
+            self.register_buffer("bias", torch.zeros(out_features, dtype=torch.bfloat16))
+        else:
+            self.bias = None
         
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales
+        
+        if self.bias is not None:
+            logits = F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales + self.bias.to(dtype=input.dtype)
+        else:
+            logits = F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales
+        return logits
     
-
+    
 @registry.layers.register("WeightOnlyInt4Linear")
 class WeightOnlyInt4Linear(torch.nn.Module):
     __constants__ = ['in_features', 'out_features']
