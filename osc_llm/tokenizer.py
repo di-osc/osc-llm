@@ -112,13 +112,14 @@ class Tokenizer:
     
     def encode_messages(self, 
                         messages: List[Message], 
+                        add_generate_prompt: bool = True,
                         device: Optional[torch.device] = None,
                         bos: Optional[bool] = None,
                         eos: bool = False,
                         max_length: int = -1,
                         ) -> torch.Tensor:
         assert self.chat_template, "Chat template is required for encoding messages"
-        string = self.chat_template.apply_messages(messages)
+        string = self.chat_template.apply_messages(messages, add_generate_prompt=add_generate_prompt)
         return self.encode(string, device, bos, eos, max_length)
 
     def decode(self, tensor: torch.Tensor) -> str:
