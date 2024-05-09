@@ -64,6 +64,9 @@ class Qwen2Helper(HFModelHelper):
         @layers = "SwiGLU"
         n_in = {hidden_size}
         n_hidden = {intermediate_size}
+        up_bias = "False"
+        gate_bias = "False"
+        down_bias = "False"
 
         [model.head]
         @layers = "Linear"
