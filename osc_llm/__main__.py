@@ -173,5 +173,9 @@ commands = {
 
 
 
-def run_cli():
+def run():
     CLI(components=commands, as_positional=False)
+    
+    
+if __name__ == "__main__":
+    run()
