@@ -4,22 +4,15 @@ vars:
   version: 0.1.3
   chechpoint_dir: checkpoints
   temperature: 0.8
+  repo_id: Qwen/Qwen1.5-7B-Chat
 check_requirements: false
 workflows:
   all: 
     - download
     - convert
-    - chat
-  test:
-    - install 
-    - chat
 commands:
-  - name: chat
-    help: 与机器人聊天
-    script:
-      - llm chat ${vars.chechpoint_dir}/${vars.repo_id} --temperature ${vars.temperature} --accelerator cuda
       
-  - name: install
+  - name: build
     help: 重新打包并安装
     script:
       - poetry build
@@ -34,3 +27,8 @@ commands:
     help: 转换模型
     script:
       - llm convert ${vars.chechpoint_dir}/${vars.repo_id}
+
+  - name: chat
+    help: 与模型进行对话
+    script:
+      - llm chat --temperature ${vars.temperature} --checkpoint_dir ${vars.chechpoint_dir}/${vars.repo_id} --max_length 1024
