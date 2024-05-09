@@ -21,14 +21,14 @@ _SAFETENSORS_AVAILABLE = RequirementCache("safetensors")
 
 def download_huggingface_model(repo_id: str, 
                                save_dir: str = "./checkpoints",
-                               force_download: bool = False,
+                               force_download: bool = True,
                                access_token: Optional[str] = os.getenv("HF_TOKEN"),
                                from_safetensors: bool = False):
     
     directory = Path(save_dir, repo_id)
     if directory.exists():
         if not force_download:
-            msg.fail(f"Directory {directory} already exists. Use --force-download to re-download.", exits=1)
+            msg.fail(f"Directory {directory} already exists. Use --force_download to re-download.", exits=1)
         else:
             msg.info(f"Directory {directory} already exists. Re-downloading.")
             import shutil
