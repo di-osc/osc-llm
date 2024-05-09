@@ -11,7 +11,7 @@ class TopK(Sampler):
         temperature: float = 1.0,
         ) -> None:
         super().__init__()
-        assert temperature > 0
+        assert temperature >= 0
         self.temperature = temperature
         self.k = k 
         
