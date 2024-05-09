@@ -121,6 +121,7 @@ def main(checkpoint_dir: str,
          engine: Literal['v1', 'v2'] = 'v1',
          accelerator: Literal['cuda', 'cpu', 'gpu', 'auto'] = 'cuda',
          devices: Union[int, List[int]] = 1,
+         max_length: Optional[int] = None,
          host: str = '0.0.0.0',
          port: int = 8000,
          compile: bool = True):
@@ -172,9 +173,9 @@ def main(checkpoint_dir: str,
             return JSONResponse(content=response.model_dump(exclude_unset=True))
     
     if engine == 'v1':
-        engine: LLMEngine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile)
+        engine: LLMEngine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile, max_length=max_length)
     else:
-        engine: LLMEngine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile)
+        engine: LLMEngine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile, max_length=max_length)
     engine.setup()
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
     
