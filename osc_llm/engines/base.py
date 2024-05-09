@@ -53,9 +53,7 @@ class LLMEngine(ABC):
         self.load_model()
         self.fabric.print(f"load model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
         if self.compile:
-            t = perf_counter()
             self.compile_model()
-            self.fabric.print(f"compile model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
         t = perf_counter()
         self.setup_model()
         self.fabric.print(f"setup model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
