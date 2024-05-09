@@ -1,4 +1,4 @@
-from ..engines import LLMEngineV2, LLMEngineV1
+from ..engines import LLMEngineV2, LLMEngineV1, LLMEngine
 from ..tokenizer import Tokenizer
 from ..chat_templates import Message
 from ..utils import random_uuid
@@ -122,7 +122,8 @@ def main(checkpoint_dir: str,
          accelerator: Literal['cuda', 'cpu', 'gpu', 'auto'] = 'cuda',
          devices: Union[int, List[int]] = 1,
          host: str = '0.0.0.0',
-         port: int = 8000):
+         port: int = 8000,
+         compile: bool = True):
     """openai接口服务
 
     Args:
@@ -132,6 +133,7 @@ def main(checkpoint_dir: str,
         devices (Union[int, List[int]], optional): 设备数量或者设备的ID. Defaults to 1.
         host (str, optional): 主机地址. Defaults to '0.0.0.0'.
         port (int, optional): 端口号. Defaults to 8000.
+        compile (bool, optional): 是否编译模型. Defaults to True.
     """
     
     app = FastAPI()
@@ -170,21 +172,14 @@ def main(checkpoint_dir: str,
             return JSONResponse(content=response.model_dump_json(exclude_unset=True))
     
     if engine == 'v1':
-        engine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator)
+        engine: LLMEngine = LLMEngineV1(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile)
     else:
-        engine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator)
+        engine: LLMEngine = LLMEngineV2(checkpoint_dir, devices=devices, accelerator=accelerator, compile=compile)
     engine.setup()
-    tokenizer = Tokenizer(checkpoint_dir)
+    tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
     
-    warmup_messages = [[Message(role='user', content="你好")], [Message(role='user', content="介绍一下你自己")]]
-    engine.fabric.print("Warming up engine that may take one or two minutes...")
-    start_time = time.perf_counter()
-    for messages in warmup_messages:
-        input_ids = tokenizer.encode_messages(messages)
-        stream = engine.run(input_ids=input_ids, stop_ids=tokenizer.stop_ids)
-        stream_tokens = tokenizer.decode_stream(stream=stream)
-        for token in stream_tokens:
-            pass
-    engine.fabric.print(f"Engine warmup finished in {time.perf_counter() - start_time:.2f}s")
-    
+    # Todo: 在启动模型编译的情况下第一次运行需要耗费很多时间(几分钟),如何在启动的时候预热模型?
+    if compile:
+        from wasabi import msg
+        msg.warn("you are using compile mode, the first run may take a long time")
     uvicorn.run(app=app, host=host, port=port)
