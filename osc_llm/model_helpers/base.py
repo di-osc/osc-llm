@@ -2,10 +2,8 @@ import json
 from pathlib import Path
 from typing import Dict
 import torch
-from typing import Literal
 from ..config import Config
 from ..utils import build_model
-from ..quantizers import WeightOnlyInt4Quantizer, WeightOnlyInt8Quantizer
 from ..tokenizer import Tokenizer
 from wasabi import msg
 
@@ -105,40 +103,3 @@ class HFModelHelper:
         model.load_state_dict(torch.load(str(self.checkpoint_dir / checkpoint_name), mmap=True, weights_only=True), assign=True)
         model.to(device)
         return model.eval()
-        
-    def quantize_int8(self, save_dir: str):
-        model = self.load_checkpoint()
-        helper = WeightOnlyInt8Quantizer()
-        quantized_model = helper.quantize(model)
-        merged_config: Config = self.osc_config.merge(helper.quantizer_config)
-        save_dir = Path(save_dir)
-        if not save_dir.exists():
-            save_dir.mkdir(parents=True)
-        checkpoint_path = Path(save_dir) / 'osc_model.pth'
-        merged_config_path = Path(save_dir) / "config.cfg"
-        torch.save(quantized_model.state_dict(), checkpoint_path)
-        merged_config.to_disk(merged_config_path)
-        if self.tokenizer:
-            self.tokenizer.save(save_dir)
-        
-    def quantize_int4(self,
-                      save_dir: str, 
-                      groupsize: Literal[32, 64, 128, 256] = 32, 
-                      k: Literal[2, 4, 8] = 8, 
-                      padding: bool = True, 
-                      device: str = 'cuda'):
-        assert torch.cuda.is_available(), 'Only support cuda device for int4 quantization'
-        assert 'cuda' in device, 'Only support cuda device for int4 quantization'
-        model = self.load_checkpoint(device=device)
-        helper = WeightOnlyInt4Quantizer(groupsize=groupsize, inner_k_tiles=k, padding_allowed=padding)
-        quantized_model = helper.quantize(model)
-        merged_config: Config = self.osc_config.merge(helper.quantizer_config)
-        save_dir = Path(save_dir)
-        if not save_dir.exists():
-            save_dir.mkdir(parents=True)
-        checkpoint_path = save_dir / 'osc_model.pth'
-        merged_config_path = save_dir / "config.cfg"
-        torch.save(quantized_model.state_dict(), checkpoint_path)
-        merged_config.to_disk(merged_config_path)
-        if self.tokenizer:
-            self.tokenizer.save(save_dir)
