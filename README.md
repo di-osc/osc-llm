@@ -2,6 +2,10 @@
 
 osc-llm旨在成为一个简单易用的大模型训练、评估、部署工具，支持目前主流的大模型。
 
+### 安装
+
+- 安装pytorch: 
+- 安装osc-llm: `pip install osc-llm`
 
 ### 项目特点
 
@@ -14,6 +18,11 @@ osc-llm旨在成为一个简单易用的大模型训练、评估、部署工具�
 - [ ] 高效微调sft
 - [ ] 大模型评估
 - [ ] 大模型部署
+
+### Huggingface模型支持
+
+- **LlamaForCausalLM**: llama2, llama2, chinese-alpaca2等。
+- **Qwen2ForCausalLM**: qwen1.5系列等。
 
 
 ### 致敬
