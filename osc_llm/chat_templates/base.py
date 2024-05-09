@@ -14,22 +14,24 @@ class ChatTemplate():
     
     default_system: Optional[str] = ''
     stop_texts: List[str] = []
+    generate_prompt: str = ''
     
     @classmethod
-    def apply_messages(cls, messages: List[Message]) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = True) -> str:
         raise NotImplementedError
     
     @classmethod
-    def apply_user(cls, user: str) -> str:
+    def apply_user(cls, user: str, add_generate_prompt: bool = True) -> str:
         messages = []
         if cls.default_system:
             messages.append(Message(role="system", content=cls.default_system))
         messages.append(Message(role="user", content=user))
-        return cls.apply_messages(messages)
+        return cls.apply_messages(messages, add_generate_prompt=add_generate_prompt)
 
-    def get_config(self) -> Config:
+    @classmethod
+    def get_config(cls) -> Config:
         for k, v in registry.chat_templates.get_all().items():
-            if isinstance(self, v):
+            if isinstance(cls, v):
                 name = k
         config_str = f"""
         [chat_template]

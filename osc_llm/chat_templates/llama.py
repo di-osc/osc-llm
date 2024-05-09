@@ -8,14 +8,16 @@ from ..config import registry
 class Llama3ChatTemplate(ChatTemplate):
     
     stop_texts: List[str] = ["<|end_of_text|>", "<|eot_id|>"]
+    generate_prompt: str = "<|start_header_id|>assistant<|end_header_id|>\n\n"
     
     @classmethod
-    def apply_messages(cls, messages: List[Message]) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = False) -> str:
         assert messages[-1].role == "user", "Last message must be user"
         prompt = "<|begin_of_text|>"
         for message in messages:
             prompt += _apply_message_llama3(message)
-        prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
+        if add_generate_prompt:
+            prompt += cls.generate_prompt
         return prompt
     
 def _apply_message_llama3(message: Message) -> str:
@@ -33,9 +35,10 @@ class Llama2ChatTemplate(ChatTemplate):
             " instead of answering something not correct. If you don't know the answer to a question, please don't"
             " share false information.")
     stop_texts: List[str] = []
+    generate_prompt: str = ''
     
     @classmethod
-    def apply_messages(cls, messages: List[Message]) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = True) -> str:
         if messages[0].role == 'system':
             assert len(messages) >= 2, "must have a user input"
             assert messages[1].role == "user", "must have a user input"
