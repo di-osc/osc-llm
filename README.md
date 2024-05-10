@@ -21,8 +21,9 @@ osc-llm旨在成为一个简单易用的大模型训练、评估、部署工具�
 
 ### Huggingface模型支持
 
-- **LlamaForCausalLM**: llama2, llama2, chinese-alpaca2等。
-- **Qwen2ForCausalLM**: qwen1.5系列等。
+- **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
+- **Qwen2ForCausalLM**: qwen1.5系列。
+- **Qwen2MoeForCausalLM**: qwen2-moe系列(目前无法完成编译,推理速度很慢。)
 
 
 ### 致敬
