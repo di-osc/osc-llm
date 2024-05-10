@@ -61,21 +61,29 @@ def GeGLU(n_in: int,
                down_bias=down_bias)
     
     
-@registry.layers.register("MoE")
-class MoE(nn.Module):
+@registry.layers.register("SparseMoE")
+class SparseMoE(nn.Module):
     def __init__(
-        self, 
+        self,
         n_experts: int, 
         n_activated_experts: int,
-        n_in: int,
         expert: nn.Module,
+        n_in: int, 
+        norm_probs: bool = True,
+        add_shared_expert: bool = False,
         gate_bias: bool = False,
+        
         ) -> None:
         super().__init__()
-        self.gate = nn.Linear(n_in, n_experts, bias=gate_bias)
+        self.gate = nn.Linear(n_in, n_experts, gate_bias)
         self.experts = nn.ModuleList(deepcopy(expert) for _ in range(n_experts))
         self.n_activated_experts = n_activated_experts
         self.n_experts = n_experts
+        self.norm_probs = norm_probs
+        self.add_shared_expert = add_shared_expert
+        if add_shared_expert:
+            self.shared_expert = deepcopy(expert)
+            self.shared_expert_gate = nn.Linear(n_in, 1, gate_bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -86,11 +94,14 @@ class MoE(nn.Module):
         x = x.view(-1, C)  # (B*T, C)
         router = self.gate(x)  # (B*T, n_expert)
         probs, indices = torch.topk(router, self.n_activated_experts)  # (B*T, n_expert_per_token)
-        probs = probs.softmax(dim=1, dtype=torch.float).to(dtype=x.dtype)
+        if self.norm_probs:
+            probs = probs.softmax(dim=1, dtype=torch.float).to(dtype=x.dtype)
         masks = indices.unsqueeze(-1) == torch.arange(self.n_experts, device=x.device)
         masks = masks.permute(2, 0, 1)  # (n_expert, B*T, n_expert_per_token)
         y = torch.zeros_like(x)  # (B*T, C)
         for mask, expert in zip(masks, self.experts):
             token_idx, expert_idx = torch.where(mask)
             y[token_idx] += probs[token_idx, expert_idx, None] * expert(x[token_idx])
-        return y.view(B, T, C), indices
+        if self.add_shared_expert:
+            y += self.shared_expert(x) * self.shared_expert_gate(x).sigmoid()
+        return y.view(B, T, C)
