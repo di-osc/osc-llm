@@ -27,10 +27,9 @@ class LLMEngineV1(LLMEngine):
         config = Config().from_disk(config_path)
         assert config['model']['@architectures'] == "TransformerDecoder", "Only TransformerDecoder Architecture is supported"
             
-        with self.fabric.init_module(empty_init=True):
-            self.model = build_model(config=config_path, empty_init=False).eval()
-        
+        self.model = build_model(config=config_path, empty_init=True).eval()
         self.fabric.load_raw(states_path, self.model)
+        self.model = self.fabric.to_device(self.model)
         
         with self.fabric.init_tensor():
             self.model.setup_kv_cache(batch_size=1, max_length=self.max_length, dtype=torch.bfloat16)
@@ -43,6 +42,8 @@ class LLMEngineV1(LLMEngine):
         torch._inductor.config.triton.cudagraph_trees = False # 目前用作server的时候有bug
         
         torch._dynamo.config.automatic_dynamic_shapes = True
+        torch._dynamo.config.suppress_errors = True
+        torch._dynamo.config.capture_dynamic_output_shape_ops = True
         
         
         self.model: TransformerDecoder = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
