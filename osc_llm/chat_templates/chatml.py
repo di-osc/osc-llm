@@ -18,11 +18,11 @@ class ChatMLChatTemplate(ChatTemplate):
         prompt = ""
         for message in messages:
             if message.role == "user":
-                prompt += f"<|im_start|>user\n{message.content}\n<|im_end|>\n"
+                prompt += f"<|im_start|>user\n{message.content}<|im_end|>\n"
             elif message.role == "assistant":
-                prompt += f"<|im_start|>assistant\n{message.content}\n<|im_end|>\n"
+                prompt += f"<|im_start|>assistant\n{message.content}<|im_end|>\n"
             elif message.role == "system":
-                prompt += f"<|im_start|>system\n{message.content}\n<|im_end|>\n"
+                prompt += f"<|im_start|>system\n{message.content}<|im_end|>\n"
         if add_generate_prompt:
             prompt += cls.generate_prompt
         return prompt
