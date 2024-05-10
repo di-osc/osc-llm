@@ -1,13 +1,29 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel
 from pathlib import Path
 from ..config import registry, Config
 
 
 
+class Property(BaseModel):
+    type: str
+    description: Optional[str] = None
+    
+class Parameters(BaseModel):
+    type: str 
+    properties: Dict[str, Property]
+    required: List[str]
+
+class Tool(BaseModel):
+    name: str
+    description: str
+    parameters: Parameters
+
 class Message(BaseModel):
-    role: Literal["system", "user", "assistant"]
+    role: Literal["system", "user", "assistant", "observation"]
     content: str
+    metadata: str = ""
+    tools: List[Tool] = []
     
 
 class ChatTemplate():
