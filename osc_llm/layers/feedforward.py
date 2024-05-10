@@ -2,6 +2,8 @@ from ..config import registry
 import torch.nn as nn
 from copy import deepcopy
 import torch
+from typing import Optional
+import torch.nn.functional as F
 
 
 @registry.layers.register("GLU")
@@ -61,29 +63,26 @@ def GeGLU(n_in: int,
                down_bias=down_bias)
     
     
-@registry.layers.register("SparseMoE")
-class SparseMoE(nn.Module):
+@registry.layers.register("SparseMoe")
+class SparseMoe(nn.Module):
     def __init__(
         self,
         n_experts: int, 
         n_activated_experts: int,
         expert: nn.Module,
-        n_in: int, 
+        gate: nn.Module,
         norm_probs: bool = True,
-        add_shared_expert: bool = False,
-        gate_bias: bool = False,
-        
+        shared_expert: Optional[nn.Module] = None,
+        shared_gate: Optional[nn.Module] = None
         ) -> None:
         super().__init__()
-        self.gate = nn.Linear(n_in, n_experts, gate_bias)
+        self.gate = gate
         self.experts = nn.ModuleList(deepcopy(expert) for _ in range(n_experts))
         self.n_activated_experts = n_activated_experts
         self.n_experts = n_experts
         self.norm_probs = norm_probs
-        self.add_shared_expert = add_shared_expert
-        if add_shared_expert:
-            self.shared_expert = deepcopy(expert)
-            self.shared_expert_gate = nn.Linear(n_in, 1, gate_bias)
+        self.shared_expert = shared_expert
+        self.shared_gate = shared_gate
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -92,16 +91,24 @@ class SparseMoE(nn.Module):
         """
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
         x = x.view(-1, C)  # (B*T, C)
-        router = self.gate(x)  # (B*T, n_expert)
-        probs, indices = torch.topk(router, self.n_activated_experts)  # (B*T, n_expert_per_token)
+        
+        logits = self.gate(x)  # (B*T, n_expert)
+        probs = F.softmax(logits, dim=-1, dtype=torch.float)
+        probs, indices = torch.topk(probs, self.n_activated_experts, dim=-1)  # probs: (B*T, n_expert_per_token), indices: (B*T, n_expert_per_token)
         if self.norm_probs:
-            probs = probs.softmax(dim=1, dtype=torch.float).to(dtype=x.dtype)
-        masks = indices.unsqueeze(-1) == torch.arange(self.n_experts, device=x.device)
-        masks = masks.permute(2, 0, 1)  # (n_expert, B*T, n_expert_per_token)
+            probs /= probs.sum(dim=-1, keepdim=True)
+        probs = probs.to(dtype=x.dtype)
+        
+        masks = indices.unsqueeze(-1) == torch.arange(self.n_experts, device=x.device) # (B*T, n_expert_per_token, n_expert)
+        masks = masks.permute(2, 0, 1) # (n_expert, B*T, n_expert_per_token)
+        
         y = torch.zeros_like(x)  # (B*T, C)
-        for mask, expert in zip(masks, self.experts):
+        for expert, mask in zip(self.experts, masks):
+            # 找出该专家对应的token
             token_idx, expert_idx = torch.where(mask)
             y[token_idx] += probs[token_idx, expert_idx, None] * expert(x[token_idx])
-        if self.add_shared_expert:
-            y += self.shared_expert(x) * self.shared_expert_gate(x).sigmoid()
-        return y.view(B, T, C)
+        
+        if self.shared_expert is not None:
+            y += self.shared_expert(x) * self.shared_gate(x).sigmoid()
+            
+        return y.reshape(B, T, C)

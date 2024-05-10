@@ -118,7 +118,7 @@ class Qwen2MoeHelper(HFModelHelper):
             weight_map[f"model.layers.{i}.mlp.shared_expert.up_proj.weight"] = f"blocks.{i}.feedforward.shared_expert.up_proj.weight"
             weight_map[f"model.layers.{i}.mlp.shared_expert.down_proj.weight"] = f"blocks.{i}.feedforward.shared_expert.down_proj.weight"
             weight_map[f"model.layers.{i}.mlp.shared_expert.gate_proj.weight"] = f"blocks.{i}.feedforward.shared_expert.gate_proj.weight"
-            weight_map[f"model.layers.{i}.mlp.shared_expert_gate.weight"] = f"blocks.{i}.feedforward.shared_expert_gate.weight"
+            weight_map[f"model.layers.{i}.mlp.shared_expert_gate.weight"] = f"blocks.{i}.feedforward.shared_gate.weight"
             
             # experts
             for j in range(self.hf_config['num_experts']):
@@ -158,18 +158,35 @@ class Qwen2MoeHelper(HFModelHelper):
         @layers = "SparseMoe"
         n_experts = {num_experts}
         n_activated_experts = {num_experts_per_tok}
-        n_in = {hidden_size}
         norm_probs = {norm_topk_prob}
-        add_shared_expert = "True"
-        gate_bias = "False"
         
         [model.feedforward.expert]
-        @architectures = "SwiGLU"
+        @layers = "SwiGLU"
         n_in = {hidden_size}
         n_hidden = {moe_intermediate_size}
         up_bias = "False"
         down_bias = "False"
         gate_bias = "False"
+        
+        [model.feedforward.gate]
+        @layers = "Linear"
+        n_in = {hidden_size}
+        n_out = {num_experts}
+        bias = "False"
+        
+        [model.feedforward.shared_expert]
+        @layers = "SwiGLU"
+        n_in = {hidden_size}
+        n_hidden = {intermediate_size}
+        up_bias = "False"
+        down_bias = "False"
+        gate_bias = "False"
+        
+        [model.feedforward.shared_gate]
+        @layers = "Linear"
+        n_in = {hidden_size}
+        n_out = 1
+        bias = "False"
 
         [model.head]
         @layers = "Linear"
