@@ -6,6 +6,7 @@ from typing import Optional
 import torch.nn.functional as F
 
 
+
 @registry.layers.register("GLU")
 class GLU(nn.Module):
     """门控线性单元
@@ -30,7 +31,8 @@ class GLU(nn.Module):
         x = self.down_proj(x)
         return x
     
-    
+
+@registry.layers.register("SwiGLU.v1")
 @registry.layers.register("SwiGLU")
 def SwiGLU(n_in: int, 
            n_hidden: int,
@@ -45,6 +47,33 @@ def SwiGLU(n_in: int,
                up_bias=up_bias,
                gate_bias=gate_bias,
                down_bias=down_bias)
+    
+
+@registry.layers.register("SwiGLU.v2")
+class SwiGLUV2(nn.Module):
+    """Swish激活函数的门控线性单元另外一种实现方式,
+    
+    与v1版本的区别: 
+    - 原本的up_proj和gate_proj合并为up_gate_proj
+    - 前向传播时, up_gate_proj的输出先前后切分为up和gate两部分
+    """
+    def __init__(
+        self,
+        n_in: int,
+        n_hidden: int,
+        up_gate_bias: bool = False,
+        down_bias: bool = False
+    ):
+        super().__init__()
+        
+        self.up_gate_proj = nn.Linear(n_in, n_hidden * 2, bias=up_gate_bias)
+        self.down_proj = nn.Linear(n_hidden, n_in, bias=down_bias)
+
+    def forward(self, x):
+        x_gate, x_up = torch.chunk(self.up_gate_proj(x), 2, dim=-1)
+        x = F.silu(x_gate) * x_up
+        x = self.down_proj(x)
+        return x
     
     
 @registry.layers.register("GeGLU")
@@ -61,7 +90,7 @@ def GeGLU(n_in: int,
                up_bias=up_bias,
                gate_bias=gate_bias,
                down_bias=down_bias)
-    
+        
     
 @registry.layers.register("SparseMoe")
 class SparseMoe(nn.Module):

@@ -1,5 +1,8 @@
 from .llama import LlamaHelper
 from .qwen import Qwen2Helper
+from .chatglm import ChatGLM3Helper
+
+
 from ..config import registry
 
 def get_supported_architectures():
@@ -13,5 +16,6 @@ def get_supported_architectures():
 __all__ = [
     "LlamaHelper",
     "Qwen2Helper",
+    "ChatGLM3Helper",
     "get_supported_architectures"
 ]
