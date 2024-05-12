@@ -71,22 +71,22 @@ class LLMEngineV1(LLMEngine):
         with self.fabric.init_tensor():
             input_pos = torch.tensor([input_pos[-1].item() + 1])
         max_stop_len = max([len(stop_id) for stop_id in stop_ids])
-        yield_ids = []
-        for i in range(1, max_length - input_pos.item() + 1):
-            with sdpa_kernel(backends=[SDPBackend.MATH]):
+        yield_ids = [] # 用来存储的生成token ids, 直到长度达到stop ids中的最大长度, 然后生成
+        with sdpa_kernel(backends=[SDPBackend.MATH]):
+            for i in range(1, max_length - input_pos.item() + 1):
                 input_ids = input_ids.view(1, -1)
                 next_token_id = self.decode(input_ids=input_ids, input_pos=input_pos)
                 yield_ids.append(next_token_id)
                 # 遍历每一个stop ids
                 for ids in stop_ids:
-                    if len(yield_ids) >= len(ids):
+                    if len(yield_ids) == len(ids):
                         if all(a == b for a, b in zip(yield_ids, ids)):
                             return 
                 if len(yield_ids) >= max_stop_len:
                     yield from yield_ids
                     yield_ids = []
-            input_pos = input_pos.add_(1)
-            input_ids = next_token_id
+                input_pos = input_pos.add_(1)
+                input_ids = next_token_id
         
     def prefill(self, **model_inputs) -> torch.Tensor:
         logits = self.model(**model_inputs)[0, -1]
