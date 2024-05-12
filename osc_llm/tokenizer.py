@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Optional, Union, Generator, List
 import torch
 from .chat_templates import ChatTemplate, Message
+from sentencepiece import SentencePieceProcessor
+from tokenizers import Tokenizer as HFTokenizer
 
 
 class Tokenizer:
@@ -23,17 +25,15 @@ class Tokenizer:
 
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():
-            from sentencepiece import SentencePieceProcessor
             self.tokenizer_path = checkpoint_dir / "tokenizer.model"
-            self.processor = SentencePieceProcessor(model_file=str(vocabulary_path))
+            self.processor: SentencePieceProcessor = SentencePieceProcessor(model_file=str(vocabulary_path))
             self.backend = "sentencepiece"
             self.bos_id = self.processor.bos_id()
             self.eos_id = self.processor.eos_id()
 
         elif (vocabulary_path := checkpoint_dir / "tokenizer.json").is_file():
-            from tokenizers import Tokenizer as HFTokenizer
             self.tokenizer_path = checkpoint_dir / "tokenizer.json"
-            self.processor = HFTokenizer.from_file(str(vocabulary_path))
+            self.processor: HFTokenizer = HFTokenizer.from_file(str(vocabulary_path))
             self.backend = "huggingface"
 
             if (special_tokens_path := checkpoint_dir / "tokenizer_config.json").is_file():
@@ -94,8 +94,10 @@ class Tokenizer:
         max_length: int = -1,
     ) -> torch.Tensor:
         if self.backend == "huggingface":
-            tokens = self.processor.encode(string).ids
+            self.processor: HFTokenizer
+            tokens = self.processor.encode(string, add_special_tokens=False).ids
         elif self.backend == "sentencepiece":
+            self.processor: SentencePieceProcessor
             tokens = self.processor.encode(string)
         else:
             raise RuntimeError
@@ -180,9 +182,9 @@ class Tokenizer:
             
     @property
     def stop_ids(self) -> List[List[int]]:
-        stop_ids = [[torch.tensor([self.eos_id], dtype=torch.int)]]
+        stop_ids = [torch.tensor([self.eos_id], dtype=torch.int)]
         if self.chat_template:
-            stop_ids.extend([[self.encode(text)] for text in self.chat_template.stop_texts])
+            stop_ids.extend([self.encode(text) for text in self.chat_template.stop_texts])
         return stop_ids
     
     def has_special_chars(self, text: str) -> bool:
