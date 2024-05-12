@@ -4,6 +4,7 @@ from ..config import registry
 
 
 @registry.chat_templates.register("Llama3-8B-Chinese-Chat")
+@registry.chat_templates.register("llama-3-chinese-8b-instruct")
 @registry.chat_templates.register("Llama-3")
 class Llama3ChatTemplate(ChatTemplate):
     
