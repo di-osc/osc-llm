@@ -36,6 +36,8 @@ class CausalSelfAttention(nn.Module):
         o_bias: bool = False,
         n_query_groups: Optional[int] = None,
         kv_cache: Optional[KVCache] = None,
+        use_qkv_proj: bool = False,
+        qkv_bias: bool = False
     ):
         super().__init__()
         
@@ -45,9 +47,14 @@ class CausalSelfAttention(nn.Module):
         self.head_size = n_in // n_heads
         self.n_query_groups = n_query_groups if n_query_groups else n_heads
         
-        self.q_proj = nn.Linear(n_in, self.n_heads * self.head_size, bias=q_bias)
-        self.k_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=k_bias)
-        self.v_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=v_bias)
+        self.use_qkv_proj = use_qkv_proj
+        if not use_qkv_proj:
+            self.q_proj = nn.Linear(n_in, self.n_heads * self.head_size, bias=q_bias)
+            self.k_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=k_bias)
+            self.v_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=v_bias)
+        else:
+            self.qkv_proj = nn.Linear(n_in, self.n_heads * self.head_size + self.n_query_groups * self.head_size * 2, bias=qkv_bias)
+            
         self.o_proj = nn.Linear(n_in, n_in, bias=o_bias)
         
         self.kv_cache: KVCache = kv_cache
@@ -63,10 +70,19 @@ class CausalSelfAttention(nn.Module):
     ):
         
         B, L, D = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
-
-        q: torch.Tensor = self.q_proj(x).reshape(B, L, self.n_heads, self.head_size).permute(0, 2, 1, 3)
-        k: torch.Tensor = self.k_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
-        v: torch.Tensor = self.v_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
+        if self.use_qkv_proj:
+            qkv: torch.Tensor = self.qkv_proj(x)
+            q, k, v = qkv.split(
+                [self.n_heads * self.head_size, self.n_query_groups * self.head_size, self.n_query_groups * self.head_size],
+                dim=-1
+            )
+            q = q.reshape(B, L, self.n_heads, self.head_size).permute(0, 2, 1, 3)
+            k = k.reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
+            v = v.reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
+        else:
+            q: torch.Tensor = self.q_proj(x).reshape(B, L, self.n_heads, self.head_size).permute(0, 2, 1, 3)
+            k: torch.Tensor = self.k_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
+            v: torch.Tensor = self.v_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
         
         if (cos is not None) and (sin is not None):
             q = apply_rope(q, cos, sin)
@@ -102,10 +118,10 @@ class CausalSelfAttention(nn.Module):
         return y.transpose(1, 2)
     
     def setup_kv_cache(self, 
-                     batch_size: int, 
-                     max_seq_length: int, 
-                     device: Optional[torch.device] = None, 
-                     dtype: Optional[torch.dtype] = None) -> None:
+                       batch_size: int, 
+                       max_seq_length: int, 
+                       device: Optional[torch.device] = None, 
+                       dtype: Optional[torch.dtype] = None) -> None:
         n_heads = self.n_query_groups
         k_shape = (batch_size, n_heads, max_seq_length, self.head_size)
         v_shape = (batch_size, n_heads, max_seq_length, self.head_size)
