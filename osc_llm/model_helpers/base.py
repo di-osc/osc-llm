@@ -10,6 +10,8 @@ from wasabi import msg
 
 
 class HFModelHelper:
+    """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。
+    """
     
     hf_architecture: str
     
@@ -26,10 +28,12 @@ class HFModelHelper:
     
     @property
     def weight_map(self) -> Dict:
+        """用来进行参数名称转换"""
         raise NotImplementedError("Method not implemented")
     
     @property
     def osc_config(self) -> Config:
+        """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
     
     def convert_checkpoint(self, save_dir: str):
@@ -71,6 +75,7 @@ class HFModelHelper:
             weights = torch.load(str(file), map_location='cpu', weights_only=True, mmap=True)
             for key in weights:
                 if key not in wmap:
+                    msg.warn(f"{key} not in wmap")
                     continue
                 sd[wmap[key]] = weights[key]
         return sd
@@ -94,6 +99,7 @@ class HFModelHelper:
             with safe_open(file, framework='pt') as f:
                 for key in f.keys():
                     if key not in wmap:
+                        msg.warn(f"{key} not in wmap")
                         continue
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
