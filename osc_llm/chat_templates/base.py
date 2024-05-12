@@ -61,6 +61,8 @@ class ChatTemplate():
         for k, v in registry.chat_templates.get_all().items():
             if k in name:
                 template_cls = v
+        if template_cls is None:
+            raise ValueError(f"Chat template for {name} not found")
         return template_cls
     
     @classmethod
