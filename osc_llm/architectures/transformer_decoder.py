@@ -6,8 +6,6 @@ import torch
 from copy import deepcopy
 
 
-RoPECache = Tuple[torch.Tensor, torch.Tensor]
-
 
 class TransformerDecoderBlock(nn.Module):
     def __init__(
@@ -195,7 +193,7 @@ class TransformerDecoder(nn.Module):
         return model_size
             
     
-def build_rope_cache(seq_len: int, n_elem: int, dtype: torch.dtype, device: torch.device, base: int = 10000, condense_ratio: int = 1) -> RoPECache:
+def build_rope_cache(seq_len: int, n_elem: int, dtype: torch.dtype, device: torch.device, base: int = 10000, condense_ratio: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
     """Enhanced Transformer with Rotary Position Embedding.
 
     Derived from: https://github.com/labmlai/annotated_deep_learning_paper_implementations/blob/master/labml_nn/
