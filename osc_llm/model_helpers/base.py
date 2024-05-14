@@ -2,9 +2,10 @@ import json
 from pathlib import Path
 from typing import Dict
 import torch
-from ..config import Config
+from ..config import Config, registry
 from ..utils import build_model
 from ..tokenizer import Tokenizer
+from ..chat_templates import ChatTemplate
 from wasabi import msg
 
 
@@ -36,7 +37,7 @@ class HFModelHelper:
         """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
     
-    def convert_checkpoint(self, save_dir: str):
+    def convert_checkpoint(self, save_dir: str, add_chat_template: bool = True):
         """将huggingface模型转换为osc格式模型
 
         Args:
@@ -56,7 +57,13 @@ class HFModelHelper:
         if not out_dir.exists():
             out_dir.mkdir(parents=True)
         torch.save(sd, out_dir / 'osc_model.pth')
-        self.osc_config.to_disk(out_dir / 'config.cfg')
+        if add_chat_template:
+            chat_template = self.get_chat_template()
+            if chat_template:
+                template_config = chat_template.get_config()
+        config = self.osc_config.merge(template_config)
+        config = Config(data=config, section_order=['model', 'chat_template'])
+        config.to_disk(out_dir / 'config.cfg')
         if self.tokenizer:
             self.tokenizer.save(out_dir)
     
@@ -109,3 +116,9 @@ class HFModelHelper:
         model.load_state_dict(torch.load(str(self.checkpoint_dir / checkpoint_name), mmap=True, weights_only=True), assign=True)
         model.to(device)
         return model.eval()
+    
+    def get_chat_template(self) -> ChatTemplate:
+        for k, v in registry.chat_templates.get_all().items():
+            if k in self.checkpoint_dir.name: # 简单通过名称匹配
+                return v
+        return None
