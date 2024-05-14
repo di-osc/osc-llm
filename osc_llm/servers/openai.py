@@ -4,9 +4,6 @@ from ..chat_templates import Message
 from ..utils import random_uuid
 from ..samplers import TopK
 from typing import List, Optional, Dict, Union, Literal
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, JSONResponse
-import uvicorn
 from pydantic import BaseModel, Field
 import torch
 import time
@@ -136,8 +133,11 @@ def main(checkpoint_dir: str,
         port (int, optional): 端口号. Defaults to 8000.
         compile (bool, optional): 是否编译模型. Defaults to True.
     """
+    from fastapi import FastAPI
+    from fastapi.responses import StreamingResponse, JSONResponse
+    import uvicorn
     
-    app = FastAPI()
+    app = FastAPI(description="OpenAI API")
     
     @app.post("/v1/chat/completions")
     def create_chat_completion(request: ChatCompletionRequest):
@@ -167,9 +167,9 @@ def main(checkpoint_dir: str,
             prompt_tokens = len(input_ids)
             total_tokens = prompt_tokens + completion_tokens
             response = ChatCompletionResponse(id=f"chatcmpl-{random_uuid()}",
-                                                  model=request.model,
-                                                  choices=[ChatCompletionResponseChoice(index=0, message=ChatMessage(role='assistant', content=content))],
-                                                  usage=UsageInfo(prompt_tokens=prompt_tokens, total_tokens=total_tokens, completion_tokens=completion_tokens))
+                                              model=request.model,
+                                              choices=[ChatCompletionResponseChoice(index=0, message=ChatMessage(role='assistant', content=content))],
+                                              usage=UsageInfo(prompt_tokens=prompt_tokens, total_tokens=total_tokens, completion_tokens=completion_tokens))
             return JSONResponse(content=response.model_dump(exclude_unset=True))
     
     if engine == 'v1':
