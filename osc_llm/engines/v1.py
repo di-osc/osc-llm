@@ -53,7 +53,7 @@ class LLMEngineV1(LLMEngine):
         self.model = self.fabric.setup_module(self.model)
     
     @torch.inference_mode()
-    def run(self, input_ids: torch.Tensor, stop_ids: List[torch.Tensor], input_pos: Optional[torch.Tensor] = None) -> Generator[str, None, None]:
+    def run(self, input_ids: torch.Tensor, stop_ids: List[torch.Tensor], input_pos: Optional[torch.Tensor] = None) -> Generator[torch.Tensor, None, None]:
         
         # 确保输入在设备上
         input_ids = self.fabric.to_device(input_ids)
