@@ -47,7 +47,7 @@ class ChatTemplate():
     @classmethod
     def get_config(cls) -> Config:
         for k, v in registry.chat_templates.get_all().items():
-            if isinstance(cls, v):
+            if cls == v:
                 name = k
         config_str = f"""
         [chat_template]
@@ -68,4 +68,9 @@ class ChatTemplate():
     @classmethod
     def from_checkpoint(cls, checkpoint_dir: str) -> "ChatTemplate":
         checkpoint_dir = Path(checkpoint_dir)
+        config_path: Path = checkpoint_dir / "config.cfg"
+        if config_path.exists():
+            config = Config().from_disk(config_path)
+            if 'chat_template' in config:
+                return registry.chat_templates.get(config['chat_template']['@chat_templates'])
         return cls.from_name(checkpoint_dir.stem)
