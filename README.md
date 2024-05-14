@@ -8,6 +8,11 @@
 
 ## 📌&nbsp;&nbsp; 简介
 
+osc-llm旨在成为一个简单易用的大模型训练、评估、推理、部署工具，支持主流的大模型。
+
+> 文档地址:
+- [notion](https://www.notion.so/wangmengdi/OSC-LLM-5a04563d88464530b3d32b31e27c557a)
+
 ## 📌&nbsp;&nbsp; 安装
 
 - 安装[最新版本pytorch](https://pytorch.org/get-started/locally/)
