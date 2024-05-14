@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osc-llm"
-version = "0.1.4"
+version = "0.1.5"
 description = "大模型训练,评估,推理,部署工具"
 authors = ["wangmengdi <790990241@qq.com>"]
 license = "mit"

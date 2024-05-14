@@ -1,7 +1,7 @@
 title: project-demo
 description: describe project details
 vars:
-  version: 0.1.4
+  version: 0.1.5
   chechpoint_dir: checkpoints
   temperature: 0.8
   repo_id: Qwen/Qwen1.5-7B-Chat
