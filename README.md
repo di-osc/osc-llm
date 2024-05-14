@@ -1,18 +1,19 @@
+<div align='center'>
+
 # OSC-LLM
+<a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
+<a href="https://lightning.ai/docs/overview/getting-started"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white"></a>
 
-osc-llm旨在成为一个简单易用的大模型训练、评估、部署工具，支持目前主流的大模型。
+</div>
 
-### 项目特点
+## 📌&nbsp;&nbsp; 简介
 
-- 简单易用的命令行系统
-- 基于python entrypoint的配置系统,可以轻松拓展本项目的所有模块
+## 📌&nbsp;&nbsp; 安装
 
-### 安装
-
-- 安装pytorch: 
+- 安装[最新版本pytorch](https://pytorch.org/get-started/locally/)
 - 安装osc-llm: `pip install osc-llm`
 
-### 快速开始
+## 📌&nbsp;&nbsp; 快速开始
 ```bash
 # 下面以llama3为例演示如何转换为osc-llm格式,并进行聊天。
 # 假设你已经下载好huggingface的llama3模型在checkpoints/meta-llama目录下
@@ -26,15 +27,9 @@ llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8 -
 llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
 ```
 
-### 支持功能
+## 📌&nbsp;&nbsp; 模型支持
 
-- [ ] 全参数微调sft
-- [ ] 高效微调sft
-- [ ] 大模型评估
-- [ ] 大模型部署
-
-### Huggingface模型支持
-
+以下huggingface中的模型结构(查看config.json)已经支持转换为osc-llm格式:
 - **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
 - **Qwen2ForCausalLM**: qwen1.5系列。
 - **Qwen2MoeForCausalLM**: qwen2-moe系列(目前无法完成编译,推理速度很慢)。
