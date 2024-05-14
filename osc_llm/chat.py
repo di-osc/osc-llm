@@ -6,7 +6,6 @@ import torch
 import time
 from pathlib import Path
 from typing import Optional, Literal
-from itertools import chain
 
 
 
@@ -55,9 +54,9 @@ def main(
     engine.setup()
     
     if not hasattr(engine, "decode_model"):
-        model_size = sum([p.numel() * p.dtype.itemsize for p in chain(engine.model.parameters(), engine.model.buffers())])
+        model_size = engine.model.model_size(include_embeddings=False)
     else:
-        model_size = sum([p.numel() * p.dtype.itemsize for p in chain(engine.decode_model.parameters(), engine.decode_model.buffers())])
+        model_size = engine.decode_model.model_size(include_embeddings=False) + engine.prefill_model.model_size(include_embeddings=False)
     
     if compile:
         t = time.perf_counter()

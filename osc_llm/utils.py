@@ -149,3 +149,22 @@ def get_default_supported_precision(training: bool) -> str:
 
 def random_uuid() -> str:
     return str(uuid.uuid4().hex)
+
+def get_model_size(model: torch.nn.Module, contains_embedding: bool = False) -> int:
+    """Get the size of a model in bytes.
+
+    Args:
+        model (torch.nn.Module): the model to get the size of.
+        contains_embedding (bool, optional): whether the model contains an embedding layer. Defaults to False.
+
+    Returns:
+        int: the size of the model in bytes.
+    """
+    size = 0
+    for param in model.parameters():
+        size += param.numel() * param.element_size()
+    if contains_embedding:
+        for name, module in model.named_modules():
+            if isinstance(module, torch.nn.Embedding):
+                size += module.num_embeddings * module.embedding_dim * module.weight.element_size()
+    return size

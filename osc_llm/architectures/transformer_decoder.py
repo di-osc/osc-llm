@@ -176,6 +176,23 @@ class TransformerDecoder(nn.Module):
         # 保证在用torch.device('meta')构建模型后, 可以运行model.to('cuda:xxx'),不然会由于cos和sin是meta data而报错
         self.setup_rope_cache(max_length=self.max_length)
         return super().load_state_dict(state_dict, strict, assign)
+    
+    def model_size(self, include_embeddings: bool = True) -> int:
+        """Calculate the model size.
+
+        Args:
+            include_embeddings (bool, optional): Include embeddings in the model size. Defaults to True.
+
+        Returns:
+            int: Model size
+        """
+        import itertools
+        model_size = 0
+        for n, children in self.named_children():
+            if n == "embedding" and not include_embeddings:
+                continue
+            model_size += sum([p.numel() * p.dtype.itemsize for p in itertools.chain(children.parameters(), children.buffers())])
+        return model_size
             
     
 def build_rope_cache(seq_len: int, n_elem: int, dtype: torch.dtype, device: torch.device, base: int = 10000, condense_ratio: int = 1) -> RoPECache:
