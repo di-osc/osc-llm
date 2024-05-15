@@ -22,13 +22,13 @@ osc-llm旨在成为一个简单易用的大模型训练、评估、推理、部�
 ```bash
 # 下面以llama3为例演示如何转换为osc-llm格式,并进行聊天。
 # 假设你已经下载好huggingface的llama3模型在checkpoints/meta-llama目录下
-# 1. 转换模型
+# 1. 转换
 llm convert --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct
-# 2. 量化模型
+# 2. 量化
 llm quantize int8 --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --save_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
 # 3. 聊天(使用编译功能加速推理速度,需要等待几分钟编译时间)
 llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8 --compile true
-# 4. 部署简易版本openai服务
+# 4. 部署
 llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
 ```
 
