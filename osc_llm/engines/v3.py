@@ -40,7 +40,8 @@ class LLMEngineV3(LLMEngine):
         self.model = self.fabric.setup_module(self.model)
         self.draft_model = self.fabric.setup_module(self.draft_model)
 
-    def run(self,
+    def run(
+        self,
         input_ids: torch.Tensor,
         stop_ids: List[torch.Tensor],
         input_pos: Optional[torch.Tensor] = None,
