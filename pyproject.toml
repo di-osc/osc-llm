@@ -47,3 +47,15 @@ osc_llm = [
     "LICENSE",
     "README.md",
 ]
+
+[tool.ruff]
+line-length = 120  # 代码最大行宽
+
+[tool.ruff.lint]
+select = [         # 选择的规则
+    "F",
+    "E",
+    "W",
+    "UP",
+]
+ignore = ["F401"]  # 忽略的规则
