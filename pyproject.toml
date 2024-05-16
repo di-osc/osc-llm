@@ -1,47 +1,49 @@
-[tool.poetry]
+[project]
 name = "osc-llm"
 version = "0.1.5"
 description = "大模型训练,评估,推理,部署工具"
-authors = ["wangmengdi <790990241@qq.com>"]
-license = "mit"
+authors = [
+    {"name" =  "wangmengdi", "email" = "790990241@qq.com"},
+]
 readme = "README.md"
 
-[tool.poetry.dependencies]
-python = ">=3.8"
-torch = ">=2.3.0"
-lightning = ">=2.2.0"
+dependencies = [
+    "torch>=2.2.0",
+    "lightning>=2.2.0",
+    "jsonargparse>=4.28.0",
+    "wasabi>=1.1.2",
+    "confection>=0.1.4",
+    "catalogue>=2.0.10",
+    "sentencepiece>=0.2.0",
+    "tokenizers>=0.19.1",
+    "pydantic>=1.10.8",
+    "fastapi>=0.110.2",
+    "uvicorn[standard]>=0.29.0",
+]
 
-# CLI and logging
-wasabi = ">=1.1.2"
-jsonargparse = ">=4.28.0"
+[project.urls]
+homepage = "https://github.com/di-osc/osc-llm"
+documentation = "https://wangmengdi.notion.site/OSC-LLM-5a04563d88464530b3d32b31e27c557a?pvs=74"
 
-# config and registry
-confection = ">=0.1.4"
-catalogue = ">=2.0.10"
-
-# tokenizer
-sentencepiece = ">=0.2.0"
-tokenizers  = ">=0.19.1"
-
-# server
-pydantic = ">=1.10.8"
-fastapi = ">=0.110.2"
-uvicorn = {version = ">=0.29.0", extras = ["standard"]}
-
-
-[tool.poetry.scripts]
+[project.scripts]
 llm = "osc_llm.__main__:run"
 
-[tool.ruff]
-line-length = 120  # 代码最大行宽
-select = [         # 选择的规则
-    "F",
-    "E",
-    "W",
-    "UP",
-]
-ignore = ["F401"]  # 忽略的规则
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = [
+    "setuptools>=68.2.2",
+    "wheel>=0.41.2",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = [
+    "osc_llm",
+    "osc_llm.*",
+]
+exclude = []
+
+[tool.setuptools.package-data]
+osc_llm = [
+    "LICENSE",
+    "README.md",
+]
