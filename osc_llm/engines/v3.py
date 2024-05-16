@@ -16,9 +16,7 @@ class LLMEngineV3(LLMEngine):
         with self.fabric.init_tensor():
             self.model.setup_kv_cache(batch_size=1, max_length=self.max_length)
 
-        self.draft_model = build_from_checkpoint(
-            checkpoint_dir=self.draft_checkpoint_dir
-        )
+        self.draft_model = build_from_checkpoint(checkpoint_dir=self.draft_checkpoint_dir)
         self.fabric.to_device(self.draft_model)
         with self.fabric.init_tensor():
             self.draft_model.setup_kv_cache(batch_size=1, max_length=self.max_length)
@@ -26,21 +24,17 @@ class LLMEngineV3(LLMEngine):
     def compile_model(self) -> None:
         torch._inductor.config.coordinate_descent_tuning = True
         torch._inductor.config.triton.unique_kernel_names = True
-        torch._inductor.config.fx_graph_cache = True  # Experimental feature to reduce compilation times, will be on by default in future
-        torch._inductor.config.triton.cudagraph_trees = (
-            False  # 目前用作server的时候有bug
+        torch._inductor.config.fx_graph_cache = (
+            True  # Experimental feature to reduce compilation times, will be on by default in future
         )
+        torch._inductor.config.triton.cudagraph_trees = False  # 目前用作server的时候有bug
 
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
         torch._dynamo.config.capture_dynamic_output_shape_ops = True
 
-        self.model = torch.compile(
-            self.model, dynamic=True, fullgraph=True, mode="reduce-overhead"
-        )
-        self.draft_model = torch.compile(
-            self.draft_model, dynamic=True, fullgraph=True, mode="reduce-overhead"
-        )
+        self.model = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
+        self.draft_model = torch.compile(self.draft_model, dynamic=True, fullgraph=True, mode="reduce-overhead")
 
     def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
@@ -60,9 +54,7 @@ class LLMEngineV3(LLMEngine):
         stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
 
         self.max_length = (
-            self.max_length
-            if self.max_length
-            else min(self.model.block_size, self.draft_model.block_size)
+            self.max_length if self.max_length else min(self.model.block_size, self.draft_model.block_size)
         )
 
         # prefill
@@ -78,9 +70,7 @@ class LLMEngineV3(LLMEngine):
         buffer = []
         while input_pos.item()[-1] < self.max_length:
             # decode
-            draft_ids, draft_probs = self.speculative_decode_k(
-                k=speculate_k, input_ids=input_ids, input_pos=input_pos
-            )
+            draft_ids, draft_probs = self.speculative_decode_k(k=speculate_k, input_ids=input_ids, input_pos=input_pos)
             next_ids = self.verify(
                 draft_ids=draft_ids,
                 draft_probs=draft_probs,
@@ -91,9 +81,7 @@ class LLMEngineV3(LLMEngine):
                 if len(buffer) < max_stop_len:
                     buffer.append(next_id)
                     for ids in stop_ids:
-                        if len(ids) == len(buffer) and all(
-                            a == b for a, b in zip(ids, buffer)
-                        ):
+                        if len(ids) == len(buffer) and all(a == b for a, b in zip(ids, buffer)):
                             return
                 else:
                     yield from buffer
@@ -109,9 +97,7 @@ class LLMEngineV3(LLMEngine):
     def prefill_draft(self, **model_inputs) -> None:
         _ = self.draft_model(**model_inputs)
 
-    def speculative_decode_k(
-        self, k: int, **model_inputs
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    def speculative_decode_k(self, k: int, **model_inputs) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         new_ids = []
         new_probs = []
         for i in range(k):
@@ -135,13 +121,9 @@ class LLMEngineV3(LLMEngine):
     ) -> torch.Tensor:
         input_ids = torch.cat([cur_ids, draft_ids])
         with self.fabric.init_tensor():
-            input_pos = torch.arange(
-                cur_pos[-1].item(), cur_pos[-1].item() + 1 + len(draft_ids)
-            )
+            input_pos = torch.arange(cur_pos[-1].item(), cur_pos[-1].item() + 1 + len(draft_ids))
 
-        target_logits = self.model(
-            input_ids=input_ids.view(1, -1), input_pos=input_pos
-        )[0]
+        target_logits = self.model(input_ids=input_ids.view(1, -1), input_pos=input_pos)[0]
         target_probs = self.sampler.logits_to_probs(logits=target_logits)
 
         q = target_probs.gather(dim=-1, index=draft_ids)

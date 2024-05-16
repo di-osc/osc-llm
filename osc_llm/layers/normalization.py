@@ -20,9 +20,5 @@ class RMSNorm(torch.nn.Module):
 
 
 @registry.layers.register("LayerNorm")
-def LayerNorm(
-    n_in: int, eps: float = 1e-5, elementwise_affine: bool = True, bias: bool = True
-):
-    return torch.nn.LayerNorm(
-        n_in, eps=eps, elementwise_affine=elementwise_affine, bias=bias
-    )
+def LayerNorm(n_in: int, eps: float = 1e-5, elementwise_affine: bool = True, bias: bool = True):
+    return torch.nn.LayerNorm(n_in, eps=eps, elementwise_affine=elementwise_affine, bias=bias)

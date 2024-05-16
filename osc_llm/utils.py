@@ -154,9 +154,7 @@ def get_default_supported_precision(training: bool) -> str:
     """
     from lightning.fabric.accelerators import MPSAccelerator
 
-    if MPSAccelerator.is_available() or (
-        torch.cuda.is_available() and not torch.cuda.is_bf16_supported()
-    ):
+    if MPSAccelerator.is_available() or (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()):
         return "16-mixed" if training else "16-true"
     return "bf16-mixed" if training else "bf16-true"
 
@@ -181,9 +179,5 @@ def get_model_size(model: torch.nn.Module, contains_embedding: bool = False) -> 
     if contains_embedding:
         for name, module in model.named_modules():
             if isinstance(module, torch.nn.Embedding):
-                size += (
-                    module.num_embeddings
-                    * module.embedding_dim
-                    * module.weight.element_size()
-                )
+                size += module.num_embeddings * module.embedding_dim * module.weight.element_size()
     return size

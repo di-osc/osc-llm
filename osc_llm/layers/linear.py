@@ -25,22 +25,16 @@ class Int8Linear(nn.Module):
 
         self.in_features = in_features
         self.out_features = out_features
-        self.register_buffer(
-            "weight", torch.empty((out_features, in_features), dtype=torch.int8)
-        )
+        self.register_buffer("weight", torch.empty((out_features, in_features), dtype=torch.int8))
         self.register_buffer("scales", torch.ones(out_features, dtype=torch.bfloat16))
         if bias:
-            self.register_buffer(
-                "bias", torch.zeros(out_features, dtype=torch.bfloat16)
-            )
+            self.register_buffer("bias", torch.zeros(out_features, dtype=torch.bfloat16))
         else:
             self.bias = None
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.bias is not None:
-            logits = F.linear(
-                input, self.weight.to(dtype=input.dtype)
-            ) * self.scales + self.bias.to(dtype=input.dtype)
+            logits = F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales + self.bias.to(dtype=input.dtype)
         else:
             logits = F.linear(input, self.weight.to(dtype=input.dtype)) * self.scales
         return logits
@@ -62,9 +56,7 @@ class WeightOnlyInt4Linear(torch.nn.Module):
         inner_k_tiles: int = 8,
     ) -> None:
         super().__init__()
-        self.padding = not self._check_linear_int4_k(
-            in_features, groupsize, inner_k_tiles
-        )
+        self.padding = not self._check_linear_int4_k(in_features, groupsize, inner_k_tiles)
         if self.padding:
             self.origin_in_features = in_features
             in_features = find_multiple(in_features, 1024)
@@ -76,9 +68,7 @@ class WeightOnlyInt4Linear(torch.nn.Module):
         self.inner_k_tiles = inner_k_tiles
 
         assert out_features % 8 == 0, "require out_features % 8 == 0"
-        assert (
-            in_features % (inner_k_tiles * 16) == 0
-        ), "require in_features % (innerKTiles * 16) == 0"
+        assert in_features % (inner_k_tiles * 16) == 0, "require in_features % (innerKTiles * 16) == 0"
         self.register_buffer(
             "weight",
             torch.empty(
@@ -93,9 +83,7 @@ class WeightOnlyInt4Linear(torch.nn.Module):
         )
         self.register_buffer(
             "scales_and_zeros",
-            torch.empty(
-                (in_features // groupsize, out_features, 2), dtype=torch.bfloat16
-            ),
+            torch.empty((in_features // groupsize, out_features, 2), dtype=torch.bfloat16),
         )
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
@@ -104,13 +92,9 @@ class WeightOnlyInt4Linear(torch.nn.Module):
             import torch.nn.functional as F
 
             input = F.pad(input, pad=(0, self.in_features - self.origin_in_features))
-        return self._linear_forward_int4(
-            input, self.weight, self.scales_and_zeros, self.out_features, self.groupsize
-        )
+        return self._linear_forward_int4(input, self.weight, self.scales_and_zeros, self.out_features, self.groupsize)
 
-    def _check_linear_int4_k(
-        self, in_features: int, groupsize: int, inner_k_tiles: int
-    ) -> bool:
+    def _check_linear_int4_k(self, in_features: int, groupsize: int, inner_k_tiles: int) -> bool:
         """check if the input features are compatible with the linear int4 kernel
 
         Args:
@@ -120,14 +104,10 @@ class WeightOnlyInt4Linear(torch.nn.Module):
         """
         return in_features % (inner_k_tiles * 16) == 0 and in_features % groupsize == 0
 
-    def _linear_forward_int4(
-        self, x, weight_int4pack, scales_and_zeros, out_features, groupsize
-    ):
+    def _linear_forward_int4(self, x, weight_int4pack, scales_and_zeros, out_features, groupsize):
         origin_x_size = x.size()
         x = x.reshape(-1, origin_x_size[-1])
-        c = torch.ops.aten._weight_int4pack_mm(
-            x, weight_int4pack, groupsize, scales_and_zeros
-        )
+        c = torch.ops.aten._weight_int4pack_mm(x, weight_int4pack, groupsize, scales_and_zeros)
         new_shape = origin_x_size[:-1] + (out_features,)
         c = c.reshape(new_shape)
         return c
@@ -147,9 +127,7 @@ class LoRALinear(nn.Module):
         assert r >= 0, "r must be greater than or equal to 0"
         self.r = r
         self.alpha = alpha
-        self.linear = nn.Linear(
-            in_features=in_features, out_features=out_features, **kwargs
-        )
+        self.linear = nn.Linear(in_features=in_features, out_features=out_features, **kwargs)
         if r > 0:
             self.dropout = nn.Dropout(dropout)
             self.lora_A = nn.Parameter(torch.empty(r, in_features))

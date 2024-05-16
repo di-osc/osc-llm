@@ -34,9 +34,7 @@ class ChatTemplate:
     generate_prompt: str = ""
 
     @classmethod
-    def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = True
-    ) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = True) -> str:
         raise NotImplementedError
 
     @classmethod
@@ -75,7 +73,5 @@ class ChatTemplate:
         if config_path.exists():
             config = Config().from_disk(config_path)
             if "chat_template" in config:
-                return registry.chat_templates.get(
-                    config["chat_template"]["@chat_templates"]
-                )
+                return registry.chat_templates.get(config["chat_template"]["@chat_templates"])
         return cls.from_name(checkpoint_dir.stem)

@@ -32,18 +32,14 @@ class LLMEngineV2(LLMEngine):
         ), "Only TransformerDecoder Architecture is supported"
 
         with self.fabric.init_module(empty_init=True):
-            self.prefill_model = build_model(
-                config=config_path, empty_init=False
-            ).eval()
+            self.prefill_model = build_model(config=config_path, empty_init=False).eval()
             self.decode_model = build_model(config=config_path, empty_init=False).eval()
 
         self.fabric.load_raw(states_path, self.prefill_model)
         self.fabric.load_raw(states_path, self.decode_model)
 
         with self.fabric.init_tensor():
-            self.prefill_model.setup_kv_cache(
-                batch_size=1, max_length=self.max_length, dtype=torch.bfloat16
-            )
+            self.prefill_model.setup_kv_cache(batch_size=1, max_length=self.max_length, dtype=torch.bfloat16)
 
         self.decode_model.kv_caches = self.prefill_model.kv_caches
         self.decode_model.mask_cache = self.prefill_model.mask_cache
@@ -51,15 +47,13 @@ class LLMEngineV2(LLMEngine):
     def compile_model(self) -> None:
         torch._inductor.config.coordinate_descent_tuning = True
         torch._inductor.config.triton.unique_kernel_names = True
-        torch._inductor.config.fx_graph_cache = True  # Experimental feature to reduce compilation times, will be on by default in future
+        torch._inductor.config.fx_graph_cache = (
+            True  # Experimental feature to reduce compilation times, will be on by default in future
+        )
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
-        self.decode_model: TransformerDecoder = torch.compile(
-            self.decode_model, mode="reduce-overhead", fullgraph=True
-        )
-        self.prefill_model: TransformerDecoder = torch.compile(
-            self.prefill_model, dynamic=True
-        )
+        self.decode_model: TransformerDecoder = torch.compile(self.decode_model, mode="reduce-overhead", fullgraph=True)
+        self.prefill_model: TransformerDecoder = torch.compile(self.prefill_model, dynamic=True)
 
     def setup_model(self) -> None:
         self.prefill_model = self.fabric.setup_module(self.prefill_model)
@@ -79,9 +73,7 @@ class LLMEngineV2(LLMEngine):
         stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
 
         # prefill
-        max_length = (
-            self.max_length if self.max_length else self.prefill_model.block_size
-        )
+        max_length = self.max_length if self.max_length else self.prefill_model.block_size
         input_ids = self.prefill(input_ids=input_ids.view(1, -1), input_pos=input_pos)
         yield input_ids
 

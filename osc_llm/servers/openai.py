@@ -153,9 +153,7 @@ def main(
             input_ids = tokenizer.encode_messages(request.messages)
             input_pos = torch.arange(len(input_ids))
         engine.reset_sampler(sampler=TopK(k=100, temperature=request.temperature))
-        stream = engine.run(
-            input_ids=input_ids, stop_ids=tokenizer.stop_ids, input_pos=input_pos
-        )
+        stream = engine.run(input_ids=input_ids, stop_ids=tokenizer.stop_ids, input_pos=input_pos)
         stream_tokens = tokenizer.decode_stream(stream=stream)
 
         if request.stream:
@@ -171,16 +169,12 @@ def main(
                                 delta=DeltaMessage(role="assistant", content=token),
                             )
                         ],
-                        usage=UsageInfo(
-                            prompt_tokens=0, total_tokens=0, completion_tokens=0
-                        ),
+                        usage=UsageInfo(prompt_tokens=0, total_tokens=0, completion_tokens=0),
                     ).model_dump_json(exclude_unset=True)
                     yield f"data: {data}\n\n"
                 yield "data: [DONE]\n\n"
 
-            return StreamingResponse(
-                content=stream_content(stream_tokens), media_type="text/event-stream"
-            )
+            return StreamingResponse(content=stream_content(stream_tokens), media_type="text/event-stream")
         else:
             content = ""
             completion_tokens = 0
@@ -192,11 +186,7 @@ def main(
             response = ChatCompletionResponse(
                 id=f"chatcmpl-{random_uuid()}",
                 model=request.model,
-                choices=[
-                    ChatCompletionResponseChoice(
-                        index=0, message=ChatMessage(role="assistant", content=content)
-                    )
-                ],
+                choices=[ChatCompletionResponseChoice(index=0, message=ChatMessage(role="assistant", content=content))],
                 usage=UsageInfo(
                     prompt_tokens=prompt_tokens,
                     total_tokens=total_tokens,

@@ -107,9 +107,7 @@ class TransformerDecoder(nn.Module):
 
     @kv_caches.setter
     def kv_caches(self, value: List[KVCache]):
-        assert len(value) == len(
-            self.blocks
-        ), "Number of kv_caches must match number of blocks"
+        assert len(value) == len(self.blocks), "Number of kv_caches must match number of blocks"
         for block, kv_cache in zip(self.blocks, value):
             block.attention.kv_cache = kv_cache
 
@@ -139,18 +137,14 @@ class TransformerDecoder(nn.Module):
         dtype: Optional[torch.dtype] = None,
     ):
         if kv_cache:
-            assert isinstance(
-                kv_cache, KVCache
-            ), "kv_cache must be an instance of KVCache"
+            assert isinstance(kv_cache, KVCache), "kv_cache must be an instance of KVCache"
         else:
             kv_cache = StaticKVCache()
         self.kv_caches = [deepcopy(kv_cache) for _ in range(self.n_blocks)]
         if not max_length:
             max_length = self.block_size
         else:
-            assert (
-                max_length <= self.block_size
-            ), "max_length must be less than or equal to block_size"
+            assert max_length <= self.block_size, "max_length must be less than or equal to block_size"
 
         for block in self.blocks:
             block.attention.setup_kv_cache(
@@ -161,16 +155,10 @@ class TransformerDecoder(nn.Module):
             )
 
         self.mask_cache = (
-            torch.tril(
-                torch.ones((max_length, max_length), device=device, dtype=torch.bool)
-            )
-            .unsqueeze(0)
-            .unsqueeze(0)
+            torch.tril(torch.ones((max_length, max_length), device=device, dtype=torch.bool)).unsqueeze(0).unsqueeze(0)
         )
 
-    def setup_rope_cache(
-        self, max_length: int, device: Optional[torch.device] = None
-    ) -> None:
+    def setup_rope_cache(self, max_length: int, device: Optional[torch.device] = None) -> None:
         head_size = self.blocks[0].attention.head_size
         cos, sin = build_rope_cache(
             seq_len=max_length,
@@ -182,9 +170,7 @@ class TransformerDecoder(nn.Module):
         self.register_buffer("cos", cos, persistent=False)
         self.register_buffer("sin", sin, persistent=False)
 
-    def forward(
-        self, input_ids: torch.Tensor, input_pos: Optional[torch.Tensor] = None
-    ):
+    def forward(self, input_ids: torch.Tensor, input_pos: Optional[torch.Tensor] = None):
         """Forward pass of the TransformerDecoder.
 
         Args:
@@ -195,9 +181,7 @@ class TransformerDecoder(nn.Module):
         B, L = input_ids.size()
 
         if self.max_length < L:
-            raise ValueError(
-                f"Cannot forward sequence of length {L}, max seq length is only {self.max_seq_length}."
-            )
+            raise ValueError(f"Cannot forward sequence of length {L}, max seq length is only {self.max_seq_length}.")
 
         if input_pos is not None:
             # use rope cache
@@ -224,9 +208,7 @@ class TransformerDecoder(nn.Module):
 
         return x
 
-    def load_state_dict(
-        self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = True
-    ):
+    def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = True):
         # 保证在用torch.device('meta')构建模型后, 可以运行model.to('cuda:xxx'),不然会由于cos和sin是meta data而报错
         self.setup_rope_cache(max_length=self.max_length)
         return super().load_state_dict(state_dict, strict, assign)
@@ -247,10 +229,7 @@ class TransformerDecoder(nn.Module):
             if n == "embedding" and not include_embeddings:
                 continue
             model_size += sum(
-                [
-                    p.numel() * p.dtype.itemsize
-                    for p in itertools.chain(children.parameters(), children.buffers())
-                ]
+                [p.numel() * p.dtype.itemsize for p in itertools.chain(children.parameters(), children.buffers())]
             )
         return model_size
 

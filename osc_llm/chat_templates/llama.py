@@ -11,9 +11,7 @@ class Llama3ChatTemplate(ChatTemplate):
     generate_prompt: str = "<|start_header_id|>assistant<|end_header_id|>\n\n"
 
     @classmethod
-    def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = False
-    ) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = False) -> str:
         assert messages[-1].role == "user", "Last message must be user"
         prompt = "<|begin_of_text|>"
         for message in messages:
@@ -42,9 +40,7 @@ class Llama2ChatTemplate(ChatTemplate):
     generate_prompt: str = ""
 
     @classmethod
-    def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = True
-    ) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = True) -> str:
         if messages[0].role == "system":
             assert len(messages) >= 2, "must have a user input"
             assert messages[1].role == "user", "must have a user input"

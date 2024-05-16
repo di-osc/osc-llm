@@ -24,9 +24,7 @@ class LLMEngine(ABC):
     ):
         if not precision:
             precision = get_default_supported_precision(training=False)
-        self.fabric = Fabric(
-            devices=devices, accelerator=accelerator, precision=precision
-        )
+        self.fabric = Fabric(devices=devices, accelerator=accelerator, precision=precision)
 
         self.sampler = sampler if sampler else TopK(temperature=0.8, k=200)
         self.max_length = max_length
@@ -53,16 +51,12 @@ class LLMEngine(ABC):
     def setup(self) -> None:
         t = perf_counter()
         self.load_model()
-        self.fabric.print(
-            f"load model in {perf_counter() - t:.02f} seconds", file=sys.stderr
-        )
+        self.fabric.print(f"load model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
         if self.compile:
             self.compile_model()
         t = perf_counter()
         self.setup_model()
-        self.fabric.print(
-            f"setup model in {perf_counter() - t:.02f} seconds", file=sys.stderr
-        )
+        self.fabric.print(f"setup model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
 
     def reset_sampler(self, sampler: Sampler) -> None:
         self.sampler = sampler

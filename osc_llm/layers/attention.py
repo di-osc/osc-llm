@@ -50,17 +50,12 @@ class CausalSelfAttention(nn.Module):
         self.use_qkv_proj = use_qkv_proj
         if not use_qkv_proj:
             self.q_proj = nn.Linear(n_in, self.n_heads * self.head_size, bias=q_bias)
-            self.k_proj = nn.Linear(
-                n_in, self.n_query_groups * self.head_size, bias=k_bias
-            )
-            self.v_proj = nn.Linear(
-                n_in, self.n_query_groups * self.head_size, bias=v_bias
-            )
+            self.k_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=k_bias)
+            self.v_proj = nn.Linear(n_in, self.n_query_groups * self.head_size, bias=v_bias)
         else:
             self.qkv_proj = nn.Linear(
                 n_in,
-                self.n_heads * self.head_size
-                + self.n_query_groups * self.head_size * 2,
+                self.n_heads * self.head_size + self.n_query_groups * self.head_size * 2,
                 bias=qkv_bias,
             )
 
@@ -76,9 +71,7 @@ class CausalSelfAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         input_pos: Optional[torch.Tensor] = None,
     ):
-        B, L, D = (
-            x.size()
-        )  # batch size, sequence length, embedding dimensionality (n_embd)
+        B, L, D = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
         if self.use_qkv_proj:
             qkv: torch.Tensor = self.qkv_proj(x)
             q, k, v = qkv.split(
@@ -93,21 +86,9 @@ class CausalSelfAttention(nn.Module):
             k = k.reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
             v = v.reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
         else:
-            q: torch.Tensor = (
-                self.q_proj(x)
-                .reshape(B, L, self.n_heads, self.head_size)
-                .permute(0, 2, 1, 3)
-            )
-            k: torch.Tensor = (
-                self.k_proj(x)
-                .reshape(B, L, self.n_query_groups, self.head_size)
-                .permute(0, 2, 1, 3)
-            )
-            v: torch.Tensor = (
-                self.v_proj(x)
-                .reshape(B, L, self.n_query_groups, self.head_size)
-                .permute(0, 2, 1, 3)
-            )
+            q: torch.Tensor = self.q_proj(x).reshape(B, L, self.n_heads, self.head_size).permute(0, 2, 1, 3)
+            k: torch.Tensor = self.k_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
+            v: torch.Tensor = self.v_proj(x).reshape(B, L, self.n_query_groups, self.head_size).permute(0, 2, 1, 3)
 
         if (cos is not None) and (sin is not None):
             q = apply_rope(q, cos, sin)
@@ -118,9 +99,7 @@ class CausalSelfAttention(nn.Module):
                 raise TypeError(
                     "current attention layer does not support kv_cache, please set `kv_cache` in the layer init"
                 )
-            if not hasattr(self.kv_cache, "k_cache") or not hasattr(
-                self.kv_cache, "v_cache"
-            ):
+            if not hasattr(self.kv_cache, "k_cache") or not hasattr(self.kv_cache, "v_cache"):
                 raise TypeError("You need to call `model.setup_kv_cache()`")
             k, v = self.kv_cache.update(input_pos=input_pos, k=k, v=v, copy_dim=2)
 

@@ -128,9 +128,7 @@ class SparseMoe(nn.Module):
         Derived from: https://github.com/mistralai/mistral-src/blob/b46d6/moe_one_file_ref.py#L203-L219
         See also figure 1 in https://arxiv.org/abs/2211.15841
         """
-        B, T, C = (
-            x.size()
-        )  # batch size, sequence length, embedding dimensionality (n_embd)
+        B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
         x = x.view(-1, C)  # (B*T, C)
 
         logits = self.gate(x)  # (B*T, n_expert)

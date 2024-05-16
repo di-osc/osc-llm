@@ -23,6 +23,4 @@ class Sampler(ABC):
 
     def multinomial_sample_one(self, probs: torch.Tensor) -> torch.Tensor:
         distribution = torch.empty_like(probs).exponential_(1)
-        return torch.argmax(probs / distribution, dim=-1, keepdim=True).to(
-            dtype=torch.int
-        )
+        return torch.argmax(probs / distribution, dim=-1, keepdim=True).to(dtype=torch.int)

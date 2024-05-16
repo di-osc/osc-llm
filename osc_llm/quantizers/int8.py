@@ -48,9 +48,7 @@ class Int8Quantizer(Quantizer):
         config = Config().from_str(config_str)
         return config
 
-    def _replace_linear_weight_only_int8_per_channel(
-        self, module: nn.Module
-    ) -> nn.Module:
+    def _replace_linear_weight_only_int8_per_channel(self, module: nn.Module) -> nn.Module:
         """递归替换module中的所有nn.Linear为WeightOnlyInt8Linear"""
         for name, child in module.named_children():
             if isinstance(child, nn.Linear):
@@ -61,9 +59,7 @@ class Int8Quantizer(Quantizer):
                         Int8Linear(child.in_features, child.out_features, bias=True),
                     )
                 else:
-                    setattr(
-                        module, name, Int8Linear(child.in_features, child.out_features)
-                    )
+                    setattr(module, name, Int8Linear(child.in_features, child.out_features))
             else:
                 self._replace_linear_weight_only_int8_per_channel(child)
         return module

@@ -48,9 +48,7 @@ class HFModelHelper:
         if pytorch_model.exists() or pytorch_idx_file.exists():
             sd = self.convert_pytorch_format()
         safetensors_model = Path(self.checkpoint_dir) / "model.safetensors"
-        safetensors_idx_file = (
-            Path(self.checkpoint_dir) / "model.safetensors.index.json"
-        )
+        safetensors_idx_file = Path(self.checkpoint_dir) / "model.safetensors.index.json"
         if safetensors_model.exists() or safetensors_idx_file.exists():
             sd = self.convert_safetensor_format()
         if (
@@ -81,16 +79,12 @@ class HFModelHelper:
         if index_file.exists():
             with open(index_file, "r") as f:
                 index = json.load(f)
-            files = [
-                self.checkpoint_dir / file for file in set(index["weight_map"].values())
-            ]
+            files = [self.checkpoint_dir / file for file in set(index["weight_map"].values())]
         else:
             files = [self.checkpoint_dir / "pytorch_model.bin"]
         assert len(files) > 0, "No pytorch model file found"
         for file in files:
-            weights = torch.load(
-                str(file), map_location="cpu", weights_only=True, mmap=True
-            )
+            weights = torch.load(str(file), map_location="cpu", weights_only=True, mmap=True)
             for key in weights:
                 if key not in wmap:
                     msg.warn(f"{key} not in wmap")
@@ -105,18 +99,14 @@ class HFModelHelper:
         if index_file.exists():
             with open(index_file, "r") as f:
                 index = json.load(f)
-            files = [
-                self.checkpoint_dir / file for file in set(index["weight_map"].values())
-            ]
+            files = [self.checkpoint_dir / file for file in set(index["weight_map"].values())]
         else:
             files = [self.checkpoint_dir / "model.safetensors"]
         assert len(files) > 0, "No pytorch model file found"
         try:
             from safetensors import safe_open
         except Exception:
-            raise ImportError(
-                "Please install safetensors first, run `pip install safetensors`"
-            )
+            raise ImportError("Please install safetensors first, run `pip install safetensors`")
         for file in files:
             with safe_open(file, framework="pt") as f:
                 for key in f.keys():
@@ -126,14 +116,10 @@ class HFModelHelper:
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
 
-    def load_checkpoint(
-        self, checkpoint_name: str = "osc_model.pth", device: str = "cpu"
-    ):
+    def load_checkpoint(self, checkpoint_name: str = "osc_model.pth", device: str = "cpu"):
         model = build_model(config=self.osc_config)
         model.load_state_dict(
-            torch.load(
-                str(self.checkpoint_dir / checkpoint_name), mmap=True, weights_only=True
-            ),
+            torch.load(str(self.checkpoint_dir / checkpoint_name), mmap=True, weights_only=True),
             assign=True,
         )
         model.to(device)

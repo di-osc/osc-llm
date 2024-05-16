@@ -14,21 +14,19 @@ class ChatGLM3Helper(HFModelHelper):
         }
 
         for i in range(self.hf_config["num_layers"]):
-            weight_map[f"transformer.encoder.layers.{i}.input_layernorm.weight"] = (
-                f"blocks.{i}.attention_norm.weight"
+            weight_map[f"transformer.encoder.layers.{i}.input_layernorm.weight"] = f"blocks.{i}.attention_norm.weight"
+            weight_map[f"transformer.encoder.layers.{i}.post_attention_layernorm.weight"] = (
+                f"blocks.{i}.feedforward_norm.weight"
             )
-            weight_map[
-                f"transformer.encoder.layers.{i}.post_attention_layernorm.weight"
-            ] = f"blocks.{i}.feedforward_norm.weight"
-            weight_map[
-                f"transformer.encoder.layers.{i}.self_attention.query_key_value.weight"
-            ] = f"blocks.{i}.attention.qkv_proj.weight"
-            weight_map[
-                f"transformer.encoder.layers.{i}.self_attention.query_key_value.bias"
-            ] = f"blocks.{i}.attention.qkv_proj.bias"
-            weight_map[
-                f"transformer.encoder.layers.{i}.self_attention.dense.weight"
-            ] = f"blocks.{i}.attention.o_proj.weight"
+            weight_map[f"transformer.encoder.layers.{i}.self_attention.query_key_value.weight"] = (
+                f"blocks.{i}.attention.qkv_proj.weight"
+            )
+            weight_map[f"transformer.encoder.layers.{i}.self_attention.query_key_value.bias"] = (
+                f"blocks.{i}.attention.qkv_proj.bias"
+            )
+            weight_map[f"transformer.encoder.layers.{i}.self_attention.dense.weight"] = (
+                f"blocks.{i}.attention.o_proj.weight"
+            )
             weight_map[f"transformer.encoder.layers.{i}.mlp.dense_h_to_4h.weight"] = (
                 f"blocks.{i}.feedforward.up_gate_proj.weight"
             )

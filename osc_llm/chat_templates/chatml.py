@@ -12,9 +12,7 @@ class ChatMLChatTemplate(ChatTemplate):
     generate_prompt: str = "<|im_start|>assistant\n"
 
     @classmethod
-    def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = True
-    ) -> str:
+    def apply_messages(cls, messages: List[Message], add_generate_prompt: bool = True) -> str:
         prompt = ""
         for message in messages:
             if message.role == "user":

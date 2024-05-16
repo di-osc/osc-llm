@@ -71,9 +71,7 @@ def download_huggingface_model(
             try:
                 result = safetensors_load(safetensor_path)
             except SafetensorError as e:
-                raise RuntimeError(
-                    f"{safetensor_path} is likely corrupted. Please try to re-download it."
-                ) from e
+                raise RuntimeError(f"{safetensor_path} is likely corrupted. Please try to re-download it.") from e
             msg.info(f"{safetensor_path} --> {bin_path}")
             torch.save(result, bin_path)
             os.remove(safetensor_path)
@@ -91,9 +89,7 @@ def get_hf_model_helper(checkpoint_dir: str) -> HFModelHelper:
             text=f"Supported architectures are: {allowed_architectures}",
             exits=1,
         )
-    model_helper: HFModelHelper = registry.model_helpers.get(architecture)(
-        checkpoint_dir
-    )
+    model_helper: HFModelHelper = registry.model_helpers.get(architecture)(checkpoint_dir)
     return model_helper
 
 
@@ -124,9 +120,7 @@ def quantize_int8(checkpoint_dir: str, save_dir: str):
     if not save_dir.exists():
         save_dir.mkdir(parents=True)
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
-    model, config = build_from_checkpoint(
-        checkpoint_dir=checkpoint_dir, return_config=True
-    )
+    model, config = build_from_checkpoint(checkpoint_dir=checkpoint_dir, return_config=True)
     quantizer = Int8Quantizer()
     model = quantizer.quantize(model)
     config = config.merge(quantizer.quantizer_config)
@@ -160,13 +154,9 @@ def quantize_int4(
     if not Path(save_dir).exists():
         Path(save_dir).mkdir(parents=True)
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
-    model, config = build_from_checkpoint(
-        checkpoint_dir=checkpoint_dir, return_config=True
-    )
+    model, config = build_from_checkpoint(checkpoint_dir=checkpoint_dir, return_config=True)
     model.to(device)
-    quantizer = WeightOnlyInt4Quantizer(
-        groupsize=groupsize, inner_k_tiles=k, padding_allowed=padding
-    )
+    quantizer = WeightOnlyInt4Quantizer(groupsize=groupsize, inner_k_tiles=k, padding_allowed=padding)
     model = quantizer.quantize(model)
     config = config.merge(quantizer.quantizer_config)
     torch.save(model.state_dict(), Path(save_dir) / "osc_model.pth")
