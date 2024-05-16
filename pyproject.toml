@@ -32,6 +32,15 @@ uvicorn = {version = ">=0.29.0", extras = ["standard"]}
 [tool.poetry.scripts]
 llm = "osc_llm.__main__:run"
 
+[tool.ruff]
+line-length = 120  # 代码最大行宽
+select = [         # 选择的规则
+    "F",
+    "E",
+    "W",
+    "UP",
+]
+ignore = ["F401"]  # 忽略的规则
 
 [build-system]
 requires = ["poetry-core"]
