@@ -6,31 +6,39 @@ import torch.nn as nn
 import torch
 
 
-
 @registry.quantizers.register("Int8Quantizer")
 class Int8Quantizer(Quantizer):
     def quantize(self, model: nn.Module) -> nn.Module:
         for name, children in model.named_children():
             if isinstance(children, torch.nn.Linear):
-                int8_weight, scales, _ = self._dynamically_quantize_per_channel(children.weight.float(), -128, 127, torch.int8)
+                int8_weight, scales, _ = self._dynamically_quantize_per_channel(
+                    children.weight.float(), -128, 127, torch.int8
+                )
                 if hasattr(children, "bias") and children.bias is not None:
-                    int8_linear = Int8Linear(in_features=children.in_features, out_features=children.out_features, bias=True)
+                    int8_linear = Int8Linear(
+                        in_features=children.in_features,
+                        out_features=children.out_features,
+                        bias=True,
+                    )
                     int8_linear.bias = children.bias
                     int8_linear.weight = int8_weight
                     int8_linear.scales = scales
                 else:
-                    int8_linear = Int8Linear(in_features=children.in_features, out_features=children.out_features)
+                    int8_linear = Int8Linear(
+                        in_features=children.in_features,
+                        out_features=children.out_features,
+                    )
                     int8_linear.weight = int8_weight
                     int8_linear.scales = scales
                 setattr(model, name, int8_linear)
             else:
                 self.quantize(model=children)
         return model
-        
+
     def convert_for_runtime(self, model: nn.Module) -> nn.Module:
         model = self._replace_linear_weight_only_int8_per_channel(model)
         return model
-    
+
     @property
     def quantizer_config(self):
         config_str = """
@@ -39,20 +47,30 @@ class Int8Quantizer(Quantizer):
         """
         config = Config().from_str(config_str)
         return config
-        
-    def _replace_linear_weight_only_int8_per_channel(self, module: nn.Module) -> nn.Module:
+
+    def _replace_linear_weight_only_int8_per_channel(
+        self, module: nn.Module
+    ) -> nn.Module:
         """递归替换module中的所有nn.Linear为WeightOnlyInt8Linear"""
         for name, child in module.named_children():
             if isinstance(child, nn.Linear):
                 if hasattr(child, "bias") and child.bias is not None:
-                    setattr(module, name, Int8Linear(child.in_features, child.out_features, bias=True))
+                    setattr(
+                        module,
+                        name,
+                        Int8Linear(child.in_features, child.out_features, bias=True),
+                    )
                 else:
-                    setattr(module, name, Int8Linear(child.in_features, child.out_features))
+                    setattr(
+                        module, name, Int8Linear(child.in_features, child.out_features)
+                    )
             else:
                 self._replace_linear_weight_only_int8_per_channel(child)
         return module
-                
-    def _dynamically_quantize_per_channel(self, x, quant_min = -128, quant_max = 127, target_dtype: torch.dtype = torch.int8):
+
+    def _dynamically_quantize_per_channel(
+        self, x, quant_min=-128, quant_max=127, target_dtype: torch.dtype = torch.int8
+    ):
         # assumes symmetric quantization
         # assumes axis == 0
         # assumes dense memory format

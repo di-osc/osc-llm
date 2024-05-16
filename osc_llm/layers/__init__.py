@@ -28,5 +28,5 @@ __all__ = [
     "WeightOnlyInt4Linear",
     "Int8Linear",
     "Dropout",
-    "SparseMoe"
+    "SparseMoe",
 ]

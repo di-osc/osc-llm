@@ -7,14 +7,13 @@ import torch
 import uuid
 
 
-
 def find_multiple(n: int, k: int) -> int:
     assert k > 0
     if n % k == 0:
         return n
     return n + k - (n % k)
-        
-        
+
+
 def get_chat_template(name) -> Optional[Config]:
     """在一个checkpoint的名称中获取chat模板"""
     for k, v in registry.chat_templates.get_all().items():
@@ -23,12 +22,14 @@ def get_chat_template(name) -> Optional[Config]:
     return None
 
 
-def build_model(config: Union[Dict, str, Path, Config], 
-                model_section: str = 'model',
-                quantizer_section: str = 'quantizer',
-                empty_init: bool = True,
-                quantize: bool = True,
-                return_config: bool = False) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
+def build_model(
+    config: Union[Dict, str, Path, Config],
+    model_section: str = "model",
+    quantizer_section: str = "quantizer",
+    empty_init: bool = True,
+    quantize: bool = True,
+    return_config: bool = False,
+) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
     """Build a model from a configuration.
 
     Args:
@@ -47,7 +48,7 @@ def build_model(config: Union[Dict, str, Path, Config],
     if isinstance(config, dict):
         config = Config(data=config)
     if empty_init:
-        with torch.device('meta'):
+        with torch.device("meta"):
             resolved = registry.resolve(config=config)
     else:
         resolved = registry.resolve(config=config)
@@ -63,15 +64,17 @@ def build_model(config: Union[Dict, str, Path, Config],
     return model
 
 
-def build_from_checkpoint(checkpoint_dir: Union[str, Path], 
-                         model_section: str = 'model', 
-                         config_name: str = 'config.cfg', 
-                         model_name: str = 'osc_model.pth',
-                         empty_init: bool = True,
-                         quantize: bool = True,
-                         weights_only: bool = True,
-                         load_weights: bool = True,
-                         return_config: bool = False):
+def build_from_checkpoint(
+    checkpoint_dir: Union[str, Path],
+    model_section: str = "model",
+    config_name: str = "config.cfg",
+    model_name: str = "osc_model.pth",
+    empty_init: bool = True,
+    quantize: bool = True,
+    weights_only: bool = True,
+    load_weights: bool = True,
+    return_config: bool = False,
+):
     """build a model from a checkpoint directory.
 
     Args:
@@ -91,19 +94,28 @@ def build_from_checkpoint(checkpoint_dir: Union[str, Path],
     checkpoint_dir = Path(checkpoint_dir)
     config_path = Path(checkpoint_dir) / config_name
     if return_config:
-        model, config = build_model(config_path, 
-                                    model_section=model_section,
-                                    quantize=quantize,
-                                    empty_init=empty_init,
-                                    return_config=return_config)
+        model, config = build_model(
+            config_path,
+            model_section=model_section,
+            quantize=quantize,
+            empty_init=empty_init,
+            return_config=return_config,
+        )
     else:
-        model = build_model(config_path, 
-                            model_section=model_section,
-                            quantize=quantize,
-                            empty_init=empty_init,
-                            return_config=return_config)
+        model = build_model(
+            config_path,
+            model_section=model_section,
+            quantize=quantize,
+            empty_init=empty_init,
+            return_config=return_config,
+        )
     if load_weights:
-        states = torch.load(str(checkpoint_dir / model_name), map_location='cpu', mmap=True, weights_only=weights_only)
+        states = torch.load(
+            str(checkpoint_dir / model_name),
+            map_location="cpu",
+            mmap=True,
+            weights_only=weights_only,
+        )
         model.load_state_dict(states)
     if return_config:
         return model, config
@@ -129,7 +141,7 @@ def benchmark(model, num_iters=10, **inputs):
     msg.info(f"Mean time: {mean_time:.4f} s")
     median_time = statistics.median(times)
     msg.info(f"Median time: {median_time:.4f} s")
-    
+
 
 def get_default_supported_precision(training: bool) -> str:
     """Return default precision that is supported by the hardware: either `bf16` or `16`.
@@ -142,13 +154,16 @@ def get_default_supported_precision(training: bool) -> str:
     """
     from lightning.fabric.accelerators import MPSAccelerator
 
-    if MPSAccelerator.is_available() or (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()):
+    if MPSAccelerator.is_available() or (
+        torch.cuda.is_available() and not torch.cuda.is_bf16_supported()
+    ):
         return "16-mixed" if training else "16-true"
     return "bf16-mixed" if training else "bf16-true"
 
 
 def random_uuid() -> str:
     return str(uuid.uuid4().hex)
+
 
 def get_model_size(model: torch.nn.Module, contains_embedding: bool = False) -> int:
     """Get the size of a model in bytes.
@@ -166,5 +181,9 @@ def get_model_size(model: torch.nn.Module, contains_embedding: bool = False) -> 
     if contains_embedding:
         for name, module in model.named_modules():
             if isinstance(module, torch.nn.Embedding):
-                size += module.num_embeddings * module.embedding_dim * module.weight.element_size()
+                size += (
+                    module.num_embeddings
+                    * module.embedding_dim
+                    * module.weight.element_size()
+                )
     return size
