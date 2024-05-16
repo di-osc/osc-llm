@@ -39,6 +39,9 @@ class LLMEngineV3(LLMEngine):
     def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
         self.draft_model = self.fabric.setup_module(self.draft_model)
+        self.max_length = (
+            self.max_length if self.max_length else min(self.model.block_size, self.draft_model.block_size)
+        )
 
     def run(
         self,
@@ -48,27 +51,20 @@ class LLMEngineV3(LLMEngine):
         speculate_k: Optional[int] = 8,
     ) -> Generator[torch.Tensor, None, None]:
         # 确保输入在设备上
-        input_ids = self.fabric.to_device(input_ids)
+        stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
+        input_ids = self.fabric.to_device(input_ids).view(1, -1)
         if input_pos is None:
             input_pos = self.fabric.to_device(torch.arange(len(input_ids)))
-        stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
-
-        self.max_length = (
-            self.max_length if self.max_length else min(self.model.block_size, self.draft_model.block_size)
-        )
 
         # prefill
-        input_ids = input_ids.view(1, -1)
+        self.prefill_draft(input_ids=input_ids, input_pos=input_pos)
         input_ids = self.prefill_target(input_ids=input_ids, input_pos=input_pos)
         yield input_ids
-        self.prefill_draft(input_ids=input_ids, input_pos=input_pos)
 
-        input_ids = input_ids.view(1, -1)
-        with self.fabric.init_tensor():
-            input_pos = torch.tensor([input_pos[-1].item() + 1])
+        input_pos = input_pos[-1].add_(1).unsqueeze(0)
         max_stop_len = max([len(stop_id) for stop_id in stop_ids])
         buffer = []
-        while input_pos.item()[-1] < self.max_length:
+        while input_pos[-1] < self.max_length:
             # decode
             draft_ids, draft_probs = self.speculative_decode_k(k=speculate_k, input_ids=input_ids, input_pos=input_pos)
             next_ids = self.verify(
@@ -135,7 +131,7 @@ class LLMEngineV3(LLMEngine):
 
         if rejected_locations.shape[0] == 0:
             last_token = self.sampler.multinomial_sample_one(probs=target_probs)
-            _ = self.draft_model(input_ids=last_token, input_pos=input_pos)
+            _ = self.draft_model(input_ids=last_token, input_pos=input_pos[-1])
             return torch.cat([draft_ids, last_token])
 
         else:
