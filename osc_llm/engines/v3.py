@@ -2,8 +2,10 @@ from .base import LLMEngine
 from ..utils import build_from_checkpoint
 import torch
 from typing import Generator, Optional, Tuple, List
+from ..config import registry
 
 
+@registry.engines.register("v3")
 class LLMEngineV3(LLMEngine):
     """v3版本的引擎
     特点:
@@ -48,7 +50,6 @@ class LLMEngineV3(LLMEngine):
         input_ids: torch.Tensor,
         stop_ids: List[torch.Tensor],
         input_pos: Optional[torch.Tensor] = None,
-        speculate_k: Optional[int] = 8,
     ) -> Generator[torch.Tensor, None, None]:
         # 确保输入在设备上
         stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
@@ -66,7 +67,7 @@ class LLMEngineV3(LLMEngine):
         while input_pos[-1] < self.max_length:
             # decode
             draft_ids, draft_probs = self.speculative_decode_k(
-                k=speculate_k, input_ids=input_ids.view(1, -1), input_pos=input_pos
+                k=self.speculate_k, input_ids=input_ids.view(1, -1), input_pos=input_pos
             )
             next_ids = self.verify(
                 draft_ids=draft_ids,

@@ -1,11 +1,12 @@
 from .tokenizer import Tokenizer
 from .chat_templates import Message
+from .engines import LLMEngine, LLMEngineV1, LLMEngineV3
 from .samplers import TopK
-from .engines import LLMEngineV1, LLMEngine, LLMEngineV2
+from .config import registry
 import torch
 import time
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Optional, Literal, Union, List
 
 
 torch.set_float32_matmul_precision("high")
@@ -14,18 +15,20 @@ torch.set_float32_matmul_precision("high")
 @torch.inference_mode()
 def main(
     checkpoint_dir: str,
-    device: int = 0,
+    draft_dir: Optional[str] = None,
+    speculate_k: int = 8,
+    devices: Union[List[int], int] = [0],
     temperature: float = 1.0,
     top_k: int = 200,
     max_length: Optional[int] = None,
     compile: bool = False,
     multi_turn: bool = False,
-    engine: Literal["v1", "v2"] = "v1",
 ):
     """chat with llm
 
     Args:
         checkpoint_dir (str): the directory of the model checkpoint
+        draft_dir (str): the directory of the draft model checkpoint
         device (int, optional): which gpu to use. Defaults to 0.
         temperature (float, optional): the temperature of the sampling. Defaults to 1.0.
         top_k (int, optional): the top k sampling. Defaults to 200.
@@ -38,22 +41,21 @@ def main(
     checkpoint_dir: Path = Path(checkpoint_dir)
     tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
     sampler = TopK(k=top_k, temperature=temperature)
-    if engine == "v1":
-        engine: LLMEngine = LLMEngineV1(
+    if draft_dir is not None:
+        engine = LLMEngineV3(
             checkpoint_dir=checkpoint_dir,
+            draft_checkpoint_dir=draft_dir,
+            speculate_k=speculate_k,
             sampler=sampler,
             max_length=max_length,
-            devices=[device],
+            devices=devices,
             compile=compile,
         )
-    elif engine == "v2":
-        engine: LLMEngine = LLMEngineV2(
-            checkpoint_dir=checkpoint_dir,
-            sampler=sampler,
-            max_length=max_length,
-            devices=[device],
-            compile=compile,
+    else:
+        engine = LLMEngineV1(
+            checkpoint_dir=checkpoint_dir, sampler=sampler, max_length=max_length, devices=devices, compile=compile
         )
+
     engine.setup()
 
     if not hasattr(engine, "decode_model"):

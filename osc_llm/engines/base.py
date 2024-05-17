@@ -15,6 +15,7 @@ class LLMEngine(ABC):
         self,
         checkpoint_dir: str,
         draft_checkpoint_dir: Optional[str] = None,
+        speculate_k: int = 8,
         sampler: Optional[Sampler] = None,
         max_length: Optional[int] = None,
         devices: Union[int, List[int]] = 1,
@@ -32,7 +33,9 @@ class LLMEngine(ABC):
         self.compile = compile
 
         self.checkpoint_dir = checkpoint_dir
+
         self.draft_checkpoint_dir = draft_checkpoint_dir
+        self.speculate_k = speculate_k
 
     @abstractmethod
     def load_model(self) -> None:
