@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=1.10.8",
     "fastapi>=0.110.2",
     "uvicorn[standard]>=0.29.0",
+    "safetensors>=0.4.3"
 ]
 
 [project.urls]
