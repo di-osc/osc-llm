@@ -1,7 +1,6 @@
 from .base import LLMEngine
 from ..utils import build_model
 from ..architectures import TransformerDecoder
-from ..samplers import Sampler
 from ..config import Config, registry
 import torch
 from torch.nn.attention import sdpa_kernel, SDPBackend
@@ -45,15 +44,14 @@ class LLMEngineV1(LLMEngine):
         )
         torch._inductor.config.triton.cudagraph_trees = False  # 目前用作server的时候有bug
 
-        torch._dynamo.config.automatic_dynamic_shapes = False
+        torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
         torch._dynamo.config.capture_dynamic_output_shape_ops = True
 
-        global decode, prefill
-        decode = torch.compile(decode, mode="reduce-overhead", fullgraph=True, dynamic=False)
+        self.model: TransformerDecoder = torch.compile(self.model, dynamic=True, fullgraph=True, mode="reduce-overhead")
 
     def setup_model(self) -> None:
-        pass
+        self.model = self.fabric.setup_module(self.model)
 
     @torch.inference_mode()
     def run(
@@ -71,9 +69,7 @@ class LLMEngineV1(LLMEngine):
         max_length = self.max_length if self.max_length else self.model.block_size
 
         # prefill
-        input_ids = prefill(
-            model=self.model, sampler=self.sampler, input_ids=input_ids.view(1, -1), input_pos=input_pos
-        )
+        input_ids = self.prefill(input_ids=input_ids.view(1, -1), input_pos=input_pos)
         yield input_ids
 
         # decode
@@ -84,7 +80,7 @@ class LLMEngineV1(LLMEngine):
         with sdpa_kernel(backends=[SDPBackend.MATH]):
             for i in range(1, max_length - input_pos.item() + 1):
                 input_ids = input_ids.view(1, -1)
-                next_token_id = decode(model=self.model, sampler=self.sampler, input_ids=input_ids, input_pos=input_pos)
+                next_token_id = self.decode(input_ids=input_ids, input_pos=input_pos)
                 yield_ids.append(next_token_id)
                 # 遍历每一个stop ids
                 for ids in stop_ids:
@@ -97,14 +93,12 @@ class LLMEngineV1(LLMEngine):
                 input_pos = input_pos.add_(1)
                 input_ids = next_token_id
 
+    def prefill(self, **model_inputs) -> torch.Tensor:
+        logits = self.model(**model_inputs)[0, -1]
+        idx = self.sampler.sample(logits=logits)
+        return idx
 
-def prefill(model: TransformerDecoder, sampler: Sampler, input_ids, input_pos) -> torch.Tensor:
-    logits = model(input_ids=input_ids, input_pos=input_pos)
-    idx = sampler.sample(logits=logits)[0, -1]
-    return idx
-
-
-def decode(model: TransformerDecoder, sampler: Sampler, input_ids, input_pos) -> torch.Tensor:
-    logits = model(input_ids=input_ids, input_pos=input_pos)[0, -1]
-    idx = sampler.sample(logits=logits)
-    return idx
+    def decode(self, **model_inputs) -> torch.Tensor:
+        logits = self.model(**model_inputs)[0, -1]
+        idx = self.sampler.sample(logits=logits)
+        return idx
