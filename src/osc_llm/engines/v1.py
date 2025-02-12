@@ -1,11 +1,10 @@
 from .base import LLMEngine
-from ..utils import build_model
+from ..utils import get_hf_model_helper
 from ..architectures import TransformerDecoder
-from ..config import Config, registry
+from ..config import registry
 import torch
 from torch.nn.attention import sdpa_kernel, SDPBackend
 from typing import List, Generator, Optional
-from pathlib import Path
 
 
 @registry.engines.register("v1.TransformerDecoder")
@@ -21,16 +20,8 @@ class LLMEngineV1(LLMEngine):
     """
 
     def load_model(self) -> None:
-        config_path = Path(self.checkpoint_dir) / "config.cfg"
-        states_path = Path(self.checkpoint_dir) / "osc_model.pth"
-
-        config = Config().from_disk(config_path)
-        assert (
-            config["model"]["@architectures"] == "TransformerDecoder"
-        ), "Only TransformerDecoder Architecture is supported"
-
-        self.model = build_model(config=config_path, empty_init=True).eval()
-        self.fabric.load_raw(states_path, self.model)
+        model_helper = get_hf_model_helper(self.checkpoint_dir)
+        self.model = model_helper.load_model()
         self.model = self.fabric.to_device(self.model)
 
         with self.fabric.init_tensor():
