@@ -1,10 +1,12 @@
 from pathlib import Path
 from .config import registry, Config
-from typing import Optional, Union, Dict, Tuple
+from typing import Optional, Union
 from wasabi import msg
 import statistics
 import torch
 import uuid
+import json
+from .model_helpers import HFModelHelper, get_supported_architectures, build_model
 
 
 def find_multiple(n: int, k: int) -> int:
@@ -20,48 +22,6 @@ def get_chat_template(name) -> Optional[Config]:
         if k in name:
             return v
     return None
-
-
-def build_model(
-    config: Union[Dict, str, Path, Config],
-    model_section: str = "model",
-    quantizer_section: str = "quantizer",
-    empty_init: bool = True,
-    quantize: bool = True,
-    return_config: bool = False,
-) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
-    """Build a model from a configuration.
-
-    Args:
-        config (Union[Dict, str, Path, Config]): the configuration to build the model from, can be a dictionary, a path to a file or a Config object.
-        model_section (str, optional): the section to look for the model in the configuration. Defaults to 'model'.
-        quantizer_section (str, optional): the section to look for the quantizer in the configuration. Defaults to 'quantizer'.
-        empty_init (bool, optional): whether to initialize the model with empty weights. Defaults to True.
-        quantize (bool, optional): whether to quantize the model. Defaults to True.
-        return_config (bool, optional): whether to return the configuration as well. Defaults to False.
-
-    Returns:
-        torch.nn.Module: the model built from the configuration.
-    """
-    if isinstance(config, (str, Path)):
-        config = Config().from_disk(config)
-    if isinstance(config, dict):
-        config = Config(data=config)
-    if empty_init:
-        with torch.device("meta"):
-            resolved = registry.resolve(config=config)
-    else:
-        resolved = registry.resolve(config=config)
-    if model_section not in resolved:
-        msg.fail(f"cannot find model section {model_section}")
-    else:
-        model = resolved[model_section]
-    if quantizer_section in resolved and quantize:
-        quantizer = resolved[quantizer_section]
-        model = quantizer.convert_for_runtime(model=model)
-    if return_config:
-        return model, config
-    return model
 
 
 def build_from_checkpoint(
@@ -187,3 +147,21 @@ def get_model_size(model: torch.nn.Module, contains_embedding: bool = False) -> 
                     * module.weight.element_size()
                 )
     return size
+
+
+def get_hf_model_helper(checkpoint_dir: str) -> HFModelHelper:
+    config_path = Path(checkpoint_dir) / "config.json"
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    architecture = config["architectures"][0]
+    allowed_architectures = get_supported_architectures()
+    if architecture not in allowed_architectures:
+        msg.fail(
+            title="Architecture {architecture} is not supported.",
+            text=f"Supported architectures are: {allowed_architectures}",
+            exits=1,
+        )
+    model_helper: HFModelHelper = registry.model_helpers.get(architecture)(
+        checkpoint_dir
+    )
+    return model_helper

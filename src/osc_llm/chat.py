@@ -17,6 +17,7 @@ def main(
     draft_dir: Optional[str] = None,
     speculate_k: int = 8,
     devices: Union[List[int], int] = [0],
+    accelerator: str = "auto",
     temperature: float = 1.0,
     top_k: int = 200,
     max_length: Optional[int] = None,
@@ -48,11 +49,13 @@ def main(
             sampler=sampler,
             max_length=max_length,
             devices=devices,
+            accelerator=accelerator,
             compile=compile,
         )
     else:
         engine: LLMEngine = LLMEngineV1(
             checkpoint_dir=checkpoint_dir,
+            accelerator=accelerator,
             sampler=sampler,
             max_length=max_length,
             devices=devices,

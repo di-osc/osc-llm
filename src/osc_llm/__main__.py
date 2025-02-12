@@ -1,16 +1,12 @@
 from jsonargparse import CLI
 from .chat import main as chat_main
 from .servers.openai import main as openai_main
-from .model_helpers import get_supported_architectures
-from .model_helpers.base import HFModelHelper
 from .quantizers import Int8Quantizer, WeightOnlyInt4Quantizer
 from .tokenizer import Tokenizer
-from .config import registry
-from .utils import build_from_checkpoint
+from .utils import build_from_checkpoint, get_hf_model_helper
 from pathlib import Path
 from wasabi import msg
 from typing import Literal, Optional
-import json
 import torch
 import os
 
@@ -42,24 +38,6 @@ def download_model(
             force_download=force_download,
             token=access_token,
         )
-
-
-def get_hf_model_helper(checkpoint_dir: str) -> HFModelHelper:
-    config_path = Path(checkpoint_dir) / "config.json"
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    architecture = config["architectures"][0]
-    allowed_architectures = get_supported_architectures()
-    if architecture not in allowed_architectures:
-        msg.fail(
-            title="Architecture {architecture} is not supported.",
-            text=f"Supported architectures are: {allowed_architectures}",
-            exits=1,
-        )
-    model_helper: HFModelHelper = registry.model_helpers.get(architecture)(
-        checkpoint_dir
-    )
-    return model_helper
 
 
 def convert(checkpoint_dir: str, save_dir: Optional[str] = None):

@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union, Tuple
 import torch
+import torch.nn as nn
 from ..config import Config, registry
-from ..utils import build_model
 from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
 from wasabi import msg
@@ -13,6 +13,7 @@ class HFModelHelper:
     """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
+    checkpoint_name: str = "osc_model.pth"
 
     def __init__(self, checkpoint_dir: str):
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -28,7 +29,7 @@ class HFModelHelper:
             self.tokenizer = None
 
     @property
-    def weight_map(self) -> Dict:
+    def weight_map(self) -> Dict[str, str]:
         """用来进行参数名称转换"""
         raise NotImplementedError("Method not implemented")
 
@@ -127,21 +128,65 @@ class HFModelHelper:
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
 
-    def load_checkpoint(
-        self, checkpoint_name: str = "osc_model.pth", device: str = "cpu"
-    ):
-        model = build_model(config=self.osc_config)
+    def load_checkpoint(self, model: nn.Module) -> nn.Module:
         model.load_state_dict(
             torch.load(
-                str(self.checkpoint_dir / checkpoint_name), mmap=True, weights_only=True
+                str(self.checkpoint_dir / self.checkpoint_name),
+                mmap=True,
+                weights_only=True,
             ),
             assign=True,
         )
-        model.to(device)
         return model.eval()
+
+    def load_model(self, quantize: bool = False) -> nn.Module:
+        model = build_model(config=self.osc_config, empty_init=True, quantize=quantize)
+        return self.load_checkpoint(model)
 
     def get_chat_template(self) -> ChatTemplate:
         for k, v in registry.chat_templates.get_all().items():
             if k in self.checkpoint_dir.name:  # 简单通过名称匹配
                 return v
         return None
+
+
+def build_model(
+    config: Union[Dict, str, Path, Config],
+    model_section: str = "model",
+    quantizer_section: str = "quantizer",
+    empty_init: bool = True,
+    quantize: bool = True,
+    return_config: bool = False,
+) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
+    """Build a model from a configuration.
+
+    Args:
+        config (Union[Dict, str, Path, Config]): the configuration to build the model from, can be a dictionary, a path to a file or a Config object.
+        model_section (str, optional): the section to look for the model in the configuration. Defaults to 'model'.
+        quantizer_section (str, optional): the section to look for the quantizer in the configuration. Defaults to 'quantizer'.
+        empty_init (bool, optional): whether to initialize the model with empty weights. Defaults to True.
+        quantize (bool, optional): whether to quantize the model. Defaults to True.
+        return_config (bool, optional): whether to return the configuration as well. Defaults to False.
+
+    Returns:
+        torch.nn.Module: the model built from the configuration.
+    """
+    if isinstance(config, (str, Path)):
+        config = Config().from_disk(config)
+    if isinstance(config, dict):
+        config = Config(data=config)
+    if empty_init:
+        with torch.device("meta"):
+            resolved = registry.resolve(config=config)
+    else:
+        resolved = registry.resolve(config=config)
+    if model_section not in resolved:
+        msg.fail(f"cannot find model section {model_section}")
+    else:
+        model = resolved[model_section]
+    if quantizer_section in resolved and quantize:
+        quantizer = resolved[quantizer_section]
+        model = quantizer.convert_for_runtime(model=model)
+    if return_config:
+        return model, config
+    return model

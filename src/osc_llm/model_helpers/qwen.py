@@ -1,6 +1,7 @@
 from typing import Dict
 from ..config import Config, registry
 from .base import HFModelHelper
+import torch
 
 
 @registry.model_helpers.register("Qwen2ForCausalLM")
@@ -105,6 +106,18 @@ class Qwen2Helper(HFModelHelper):
         )
         config_str = tempelate.format(**self.hf_config)
         return Config().from_str(config_str)
+
+    def load_checkpoint(self, model: torch.nn.Module) -> torch.nn.Module:
+        states = torch.load(
+            str(self.checkpoint_dir / self.checkpoint_name),
+            mmap=True,
+            weights_only=True,
+        )
+        if "tie_word_embeddings" in self.hf_config:
+            if self.hf_config["tie_word_embeddings"]:
+                states["head.weight"] = states["embedding.embed.weight"]
+        model.load_state_dict(states, strict=True)
+        return model.eval()
 
 
 @registry.model_helpers.register("Qwen2MoeForCausalLM")
