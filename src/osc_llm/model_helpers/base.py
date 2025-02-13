@@ -66,10 +66,11 @@ class HFModelHelper:
             out_dir.mkdir(parents=True)
         torch.save(sd, out_dir / "osc_model.pth")
         if add_chat_template:
-            chat_template = self.get_chat_template()
-            if chat_template:
-                template_config = chat_template.get_config()
-        config = self.osc_config.merge(template_config)
+            template_config = self.get_chat_template_config()
+            if template_config:
+                config = self.osc_config.merge(template_config)
+            else:
+                msg.warn("No chat template found")
         config = Config(data=config, section_order=["model", "chat_template"])
         config.to_disk(out_dir / "config.cfg")
         if self.tokenizer:
@@ -124,7 +125,6 @@ class HFModelHelper:
                     if key not in wmap:
                         msg.warn(f"{key} not in wmap")
                         continue
-                    msg.good(f"Loading {key}")
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
 
@@ -143,10 +143,14 @@ class HFModelHelper:
         model = build_model(config=self.osc_config, empty_init=True, quantize=quantize)
         return self.load_checkpoint(model)
 
-    def get_chat_template(self) -> ChatTemplate:
+    def get_chat_template_config(self) -> ChatTemplate:
         for k, v in registry.chat_templates.get_all().items():
             if k in self.checkpoint_dir.name:  # 简单通过名称匹配
-                return v
+                config_str = f"""
+                [chat_template]
+                @chat_templates = {k}"""
+                config = Config().from_str(config_str)
+                return config
         return None
 
 
