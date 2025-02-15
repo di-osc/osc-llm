@@ -1,7 +1,7 @@
 [project]
 name = "osc-llm"
 version = "0.1.6"
-description = "轻量级多模态大模型推理工具,专注于易用性和推理速度。"
+description = "轻量级大模型推理工具,专注于模型推理延迟,注重框架易用性和可拓展性。"
 readme = "README.md"
 authors = [
     { name = "wangmengdi", email = "790990241@qq.com" }

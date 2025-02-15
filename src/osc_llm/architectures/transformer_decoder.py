@@ -175,9 +175,9 @@ class TransformerDecoder(nn.Module):
         cos, sin = build_rope_cache(
             seq_len=max_length,
             n_elem=head_size,
-            dtype=torch.get_default_dtype(),
             base=self.rope_base,
             device=device,
+            condense_ratio=1,
         )
         self.register_buffer("cos", cos, persistent=False)
         self.register_buffer("sin", sin, persistent=False)
@@ -258,7 +258,6 @@ class TransformerDecoder(nn.Module):
 def build_rope_cache(
     seq_len: int,
     n_elem: int,
-    dtype: torch.dtype,
     device: torch.device,
     base: int = 10000,
     condense_ratio: int = 1,
