@@ -6,19 +6,25 @@
 
 </div>
 
-## 📌&nbsp;&nbsp; 简介
+## 简介
 
-osc-llm是一款轻量级别的大模型推理框架, 专注于易用性和多模态模型的推理。
+osc-llm是一款轻量级别的模型推理框架, 专注于易用性和多任务的推理。
+
+## 特点
+
+- 使用torch.compile减少最多４倍以上的推理时间。
+- 使用int8,int4量化减少显存占用。
+- 使用Speculative decoding减少推理时间。
 
 > 文档地址:
 - [notion](https://wangmengdi.notion.site/OSC-LLM-5a04563d88464530b3d32b31e27c557a)
 
-## 📌&nbsp;&nbsp; 安装
+## 安装
 
 - 安装[最新版本pytorch](https://pytorch.org/get-started/locally/)
 - 安装osc-llm: `pip install osc-llm`
 
-## 📌&nbsp;&nbsp; 快速开始
+## 快速开始
 ```bash
 # 下面以llama3为例演示如何转换为osc-llm格式,并进行聊天。
 # 假设你已经下载好huggingface的llama3模型在checkpoints/meta-llama目录下
@@ -32,7 +38,7 @@ llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8 -
 llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
 ```
 
-## 📌&nbsp;&nbsp; 模型支持
+## 模型支持
 
 以下huggingface中的模型结构(查看config.json)已经支持转换为osc-llm格式:
 - **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
