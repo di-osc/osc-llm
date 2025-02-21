@@ -181,3 +181,10 @@ class LoRALinear(nn.Module):
             return
         self.linear.weight.data += self.get_delta_w()
         self.merged = True
+
+
+@registry.layers.register("ParametrizedLinear")
+def ParametrizedLinear(n_in: int, n_out: int, bias: bool = True):
+    return nn.utils.weight_norm(
+        nn.Linear(in_features=n_in, out_features=n_out, bias=bias)
+    )

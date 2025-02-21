@@ -24,11 +24,7 @@ class Tokenizer:
         self.bos_id = None
         self.eos_id = None
 
-        self.chat_template = (
-            chat_template
-            if chat_template
-            else ChatTemplate.from_checkpoint(checkpoint_dir)
-        )
+        self.chat_template = chat_template
 
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():
@@ -153,9 +149,12 @@ class Tokenizer:
         )
         return self.encode(string, device, bos, eos, max_length)
 
-    def decode(self, tensor: torch.Tensor) -> str:
+    def decode(self, tensor: torch.Tensor, skip_special_tokens: bool = False) -> str:
         tokens = [tensor.item()] if tensor.ndim == 0 else tensor.tolist()
-        return self.processor.decode(tokens)
+        if self.backend == "huggingface":
+            return self.processor.decode(tokens, skip_special_tokens=skip_special_tokens)
+        elif self.backend == "sentencepiece":
+            return self.processor.decode(tokens)
 
     def decode_stream(
         self,

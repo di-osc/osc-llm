@@ -1,6 +1,5 @@
 from .base import LLMEngine
-from ..utils import get_hf_model_helper
-from ..architectures import TransformerDecoder
+from ..utils import build_from_checkpoint
 from ..config import registry
 import torch
 from torch.nn.attention import sdpa_kernel, SDPBackend
@@ -20,8 +19,9 @@ class LLMEngineV1(LLMEngine):
     """
 
     def load_model(self) -> None:
-        model_helper = get_hf_model_helper(self.checkpoint_dir)
-        self.model: TransformerDecoder = model_helper.load_model()
+        # model_helper = get_hf_model_helper(self.checkpoint_dir)
+        # self.model: TransformerDecoder = model_helper.load_model()
+        self.model = build_from_checkpoint(checkpoint_dir=self.checkpoint_dir, quantize=False)
         self.model = self.fabric.to_device(self.model)
 
         with self.fabric.init_tensor():
@@ -39,12 +39,10 @@ class LLMEngineV1(LLMEngine):
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
         torch._dynamo.config.capture_dynamic_output_shape_ops = True
-        
+
         self.decode = torch.compile(self.decode, fullgraph=True, mode="reduce-overhead")
         self.prefill = torch.compile(self.prefill, dynamic=True, fullgraph=True)
-        
-        
-        
+
     def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
 

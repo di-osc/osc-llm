@@ -1,7 +1,7 @@
 from .normalization import RMSNorm, LayerNorm
 from .attention import CausalSelfAttention
 from .head import LMHead
-from .linear import Linear, WeightOnlyInt4Linear, Int8Linear
+from .linear import Linear, WeightOnlyInt4Linear, Int8Linear, ParametrizedLinear
 from .embedding import TokenEmbedding, TokenEmbeddingPlus
 from .feedforward import GLU, SwiGLU, GeGLU, SparseMoe, SwiGLUV2
 from .activation import ReLU, SiLU, GELU
@@ -27,6 +27,7 @@ __all__ = [
     "Linear",
     "WeightOnlyInt4Linear",
     "Int8Linear",
+    "ParametrizedLinear",
     "Dropout",
     "SparseMoe",
 ]
