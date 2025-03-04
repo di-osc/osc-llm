@@ -9,7 +9,6 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.6.0",
-    "lightning>=2.2.0",
     "jsonargparse>=4.28.0",
     "wasabi>=1.1.2",
     "confection>=0.1.4",
@@ -21,6 +20,7 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "safetensors>=0.4.3",
     "modelscope>=1.22.3",
+    "lightning-fabric>=2.5.0.post0",
 ]
 
 [[tool.uv.index]]
