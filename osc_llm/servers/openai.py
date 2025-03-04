@@ -1,11 +1,8 @@
-from ..tokenizer import Tokenizer
 from ..chat_templates import Message
 from ..utils import random_uuid
-from ..samplers import TopK
 from osc_llm import LLM
 from typing import List, Optional, Dict, Union, Literal
 from pydantic import BaseModel, Field
-import torch
 import time
 
 
@@ -123,6 +120,7 @@ class ChatCompletionRequest(BaseModel):
 def main(
     checkpoint_dir: str,
     accelerator: Literal["cuda", "cpu", "gpu", "auto"] = "cuda",
+    precision: str | None = None,
     devices: Union[int, List[int]] = 1,
     max_length: Optional[int] = None,
     host: str = "0.0.0.0",
@@ -148,7 +146,6 @@ def main(
 
     @app.post("/v1/chat/completions")
     def create_chat_completion(request: ChatCompletionRequest):
-
         stream_tokens = llm.chat(messages=request.messages)
 
         if request.stream:
@@ -198,8 +195,14 @@ def main(
             )
             return JSONResponse(content=response.model_dump(exclude_unset=True))
 
-    llm: LLM = LLM(checkpoint_dir=checkpoint_dir, compile=compile)
-    # Todo: 在启动模型编译的情况下第一次运行需要耗费很多时间(几分钟),如何在启动的时候预热模型?
+    llm: LLM = LLM(
+        checkpoint_dir=checkpoint_dir,
+        compile=compile,
+        accelerator=accelerator,
+        precision=precision,
+        devices=devices,
+        max_length=max_length,
+    )
     if compile:
         llm.warmup()
     uvicorn.run(app=app, host=host, port=port)

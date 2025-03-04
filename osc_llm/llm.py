@@ -83,7 +83,7 @@ class LLM:
         self.decode = torch.compile(self.decode, fullgraph=True, mode="reduce-overhead")
         if compile_prefill:
             self.prefill = torch.compile(self.prefill, dynamic=True)
-    
+
     def warmup(self):
         # warmup
         self.fabric.print("Warming up the model...", file=sys.stderr)
