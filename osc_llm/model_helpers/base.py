@@ -38,7 +38,12 @@ class HFModelHelper:
         """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
 
-    def convert_checkpoint(self, save_dir: str, add_chat_template: bool = True):
+    def convert_checkpoint(
+        self,
+        save_dir: str,
+        add_chat_template: bool = True,
+        save_new_states: bool = False,
+    ) -> Dict | None:
         """将huggingface模型转换为osc格式模型
 
         Args:
@@ -60,21 +65,24 @@ class HFModelHelper:
             and not pytorch_idx_file.exists()
             and not safetensors_idx_file.exists()
         ):
-            raise FileNotFoundError("No pytorch model file found")
-        out_dir = Path(save_dir)
-        if not out_dir.exists():
-            out_dir.mkdir(parents=True)
-        torch.save(sd, out_dir / "osc_model.pth")
-        if add_chat_template:
-            template_config = self.get_chat_template_config()
-            if template_config:
-                config = self.osc_config.merge(template_config)
-            else:
-                msg.warn("No chat template found")
-        config = Config(data=config, section_order=["model", "chat_template"])
-        config.to_disk(out_dir / "config.cfg")
-        if self.tokenizer:
-            self.tokenizer.save(out_dir)
+            raise FileNotFoundError("No pytorch_model.bin or model.safetensors found")
+        if save_new_states:
+            out_dir = Path(save_dir)
+            if not out_dir.exists():
+                out_dir.mkdir(parents=True)
+            torch.save(sd, out_dir / "osc_model.pth")
+            if add_chat_template:
+                template_config = self.get_chat_template_config()
+                if template_config:
+                    config = self.osc_config.merge(template_config)
+                else:
+                    msg.warn("No chat template found")
+            config = Config(data=config, section_order=["model", "chat_template"])
+            config.to_disk(out_dir / "config.cfg")
+            if self.tokenizer:
+                self.tokenizer.save(out_dir)
+        else:
+            return sd
 
     def convert_pytorch_format(self):
         sd = {}
@@ -128,20 +136,20 @@ class HFModelHelper:
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
 
-    def load_checkpoint(self, model: nn.Module) -> nn.Module:
+    def load_checkpoint(
+        self, model: nn.Module, states: Dict[str, torch.Tensor]
+    ) -> nn.Module:
         model.load_state_dict(
-            torch.load(
-                str(self.checkpoint_dir / self.checkpoint_name),
-                mmap=True,
-                weights_only=True,
-            ),
+            state_dict=states,
             assign=True,
         )
         return model.eval()
 
-    def load_model(self, quantize: bool = False) -> nn.Module:
-        model = build_model(config=self.osc_config, empty_init=True, quantize=quantize)
-        return self.load_checkpoint(model)
+    def load_model(self) -> nn.Module:
+        model = build_model(config=self.osc_config, empty_init=True)
+        states = self.convert_checkpoint(self.checkpoint_dir, save_new_states=False)
+        model = self.load_checkpoint(model=model, states=states)
+        return model
 
     def get_chat_template_config(self) -> ChatTemplate:
         for k, v in registry.chat_templates.get_all().items():

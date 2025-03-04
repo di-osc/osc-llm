@@ -1,8 +1,8 @@
-from ..engines import LLMEngineV2, LLMEngineV1, LLMEngine
 from ..tokenizer import Tokenizer
 from ..chat_templates import Message
 from ..utils import random_uuid
 from ..samplers import TopK
+from osc_llm import LLM
 from typing import List, Optional, Dict, Union, Literal
 from pydantic import BaseModel, Field
 import torch
@@ -122,7 +122,6 @@ class ChatCompletionRequest(BaseModel):
 
 def main(
     checkpoint_dir: str,
-    engine: Literal["v1", "v2"] = "v1",
     accelerator: Literal["cuda", "cpu", "gpu", "auto"] = "cuda",
     devices: Union[int, List[int]] = 1,
     max_length: Optional[int] = None,
@@ -149,14 +148,8 @@ def main(
 
     @app.post("/v1/chat/completions")
     def create_chat_completion(request: ChatCompletionRequest):
-        with engine.fabric.init_tensor():
-            input_ids = tokenizer.encode_messages(request.messages)
-            input_pos = torch.arange(len(input_ids))
-        engine.reset_sampler(sampler=TopK(k=100, temperature=request.temperature))
-        stream = engine.run(
-            input_ids=input_ids, stop_ids=tokenizer.stop_ids, input_pos=input_pos
-        )
-        stream_tokens = tokenizer.decode_stream(stream=stream)
+
+        stream_tokens = llm.chat(messages=request.messages)
 
         if request.stream:
 
@@ -187,7 +180,7 @@ def main(
             for token in stream_tokens:
                 content += token
                 completion_tokens += 1
-            prompt_tokens = len(input_ids)
+            prompt_tokens = len(llm.tokenizer.encode_messages(request.messages))
             total_tokens = prompt_tokens + completion_tokens
             response = ChatCompletionResponse(
                 id=f"chatcmpl-{random_uuid()}",
@@ -205,28 +198,8 @@ def main(
             )
             return JSONResponse(content=response.model_dump(exclude_unset=True))
 
-    if engine == "v1":
-        engine: LLMEngine = LLMEngineV1(
-            checkpoint_dir,
-            devices=devices,
-            accelerator=accelerator,
-            compile=compile,
-            max_length=max_length,
-        )
-    else:
-        engine: LLMEngine = LLMEngineV2(
-            checkpoint_dir,
-            devices=devices,
-            accelerator=accelerator,
-            compile=compile,
-            max_length=max_length,
-        )
-    engine.setup()
-    tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
-
+    llm: LLM = LLM(checkpoint_dir=checkpoint_dir, compile=compile)
     # Todo: 在启动模型编译的情况下第一次运行需要耗费很多时间(几分钟),如何在启动的时候预热模型?
     if compile:
-        from wasabi import msg
-
-        msg.warn("you are using compile mode, the first run may take a long time")
+        llm.warmup()
     uvicorn.run(app=app, host=host, port=port)

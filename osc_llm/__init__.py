@@ -9,3 +9,4 @@ from .engines import *
 
 from .tokenizer import Tokenizer
 from .config import registry, Config
+from .llm import LLM

@@ -39,12 +39,10 @@ class LLMEngineV1(LLMEngine):
         torch._dynamo.config.automatic_dynamic_shapes = True
         torch._dynamo.config.suppress_errors = True
         torch._dynamo.config.capture_dynamic_output_shape_ops = True
-        
+
         self.decode = torch.compile(self.decode, fullgraph=True, mode="reduce-overhead")
         self.prefill = torch.compile(self.prefill, dynamic=True, fullgraph=True)
-        
-        
-        
+
     def setup_model(self) -> None:
         self.model = self.fabric.setup_module(self.model)
 
