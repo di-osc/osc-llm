@@ -8,13 +8,15 @@
 
 ## 简介
 
-osc-llm是一款轻量级别的模型推理框架, 专注于易用性和多任务的推理。
+osc-llm是一款轻量级别的模型推理框架, 专注于延迟和易用性。
 
 ## 特点
 
-- 使用torch.compile减少最多４倍以上的推理时间。
-- 使用int8,int4量化减少显存占用。
-- 使用Speculative decoding减少推理时间。
+- ✅ 模型编译：torch.compile
+- ✅ 模型量化：WeightOnlyInt8，WeightOnlyInt4
+- ✅ 推测性解码：（Speculative decoding）
+- ✅ 极少的依赖：核心仅pytorch
+- ❎ 更高效的kvcache管理：（PageAttention、TokenAttention）
 
 > 文档地址:
 - [notion](https://wangmengdi.notion.site/OSC-LLM-5a04563d88464530b3d32b31e27c557a)
@@ -25,17 +27,23 @@ osc-llm是一款轻量级别的模型推理框架, 专注于易用性和多任�
 - 安装osc-llm: `pip install osc-llm`
 
 ## 快速开始
+
+命令行
 ```bash
 # 下面以llama3为例演示如何转换为osc-llm格式,并进行聊天。
 # 假设你已经下载好huggingface的llama3模型在checkpoints/meta-llama目录下
-# 1. 转换
-llm convert --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct
-# 2. 量化
-llm quantize int8 --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --save_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
-# 3. 聊天(使用编译功能加速推理速度,需要等待几分钟编译时间)
-llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8 --compile true
-# 4. 部署
-llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct-int8
+# 聊天(使用编译功能加速推理速度,需要等待几分钟编译时间)
+llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --compile true
+# 部署
+llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --compile true
+```
+使用LLM
+```python
+from osc_llm import LLM
+
+llm = LLM(checkpoint_dir="checkpoints/meta-llama/Meta-Llama-3-8B-Instruct", compile=True)
+for token in llm.generate(prompt="介绍一下你自己"):
+    print(token)
 ```
 
 ## 模型支持
