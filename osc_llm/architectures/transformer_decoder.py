@@ -107,9 +107,9 @@ class TransformerDecoder(nn.Module):
 
     @kv_caches.setter
     def kv_caches(self, value: List[KVCache]):
-        assert len(value) == len(
-            self.blocks
-        ), "Number of kv_caches must match number of blocks"
+        assert len(value) == len(self.blocks), (
+            "Number of kv_caches must match number of blocks"
+        )
         for block, kv_cache in zip(self.blocks, value):
             block.attention.kv_cache = kv_cache
 
@@ -139,18 +139,18 @@ class TransformerDecoder(nn.Module):
         dtype: Optional[torch.dtype] = None,
     ):
         if kv_cache:
-            assert isinstance(
-                kv_cache, KVCache
-            ), "kv_cache must be an instance of KVCache"
+            assert isinstance(kv_cache, KVCache), (
+                "kv_cache must be an instance of KVCache"
+            )
         else:
             kv_cache = StaticKVCache()
         self.kv_caches = [deepcopy(kv_cache) for _ in range(self.n_blocks)]
         if not max_length:
             max_length = self.block_size
         else:
-            assert (
-                max_length <= self.block_size
-            ), "max_length must be less than or equal to block_size"
+            assert max_length <= self.block_size, (
+                "max_length must be less than or equal to block_size"
+            )
 
         for block in self.blocks:
             block.attention.setup_kv_cache(

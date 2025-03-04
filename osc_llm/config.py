@@ -8,7 +8,7 @@ class registry(confection.registry):
 
     architectures = catalogue.create("osc", "architectures", entry_points=True)
 
-    model_helpers = catalogue.create("osc", "model_helpers", entry_points=True)
+    model_builders = catalogue.create("osc", "model_builders", entry_points=True)
 
     quantizers = catalogue.create("osc", "quantizers", entry_points=True)
 

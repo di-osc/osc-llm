@@ -1,5 +1,5 @@
 from .base import LLMEngine
-from ..utils import get_hf_model_helper
+from ..model_builders import get_hf_model_builder, HFModelBuilder
 from ..architectures import TransformerDecoder
 from ..config import registry
 import torch
@@ -20,8 +20,8 @@ class LLMEngineV1(LLMEngine):
     """
 
     def load_model(self) -> None:
-        model_helper = get_hf_model_helper(self.checkpoint_dir)
-        self.model: TransformerDecoder = model_helper.load_model()
+        model_builder: HFModelBuilder = get_hf_model_builder(self.checkpoint_dir)
+        self.model: TransformerDecoder = model_builder.load_model()
         self.model = self.fabric.to_device(self.model)
 
         with self.fabric.init_tensor():

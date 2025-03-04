@@ -1,7 +1,7 @@
 # ruff: noqa
 from .layers import *
 from .architectures import *
-from .model_helpers import *
+from .model_builders import *
 from .quantizers import *
 from .chat_templates import *
 from .samplers import *

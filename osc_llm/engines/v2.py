@@ -27,9 +27,9 @@ class LLMEngineV2(LLMEngine):
         states_path = Path(self.checkpoint_dir) / "osc_model.pth"
 
         config = Config().from_disk(config_path)
-        assert (
-            config["model"]["@architectures"] == "TransformerDecoder"
-        ), "Only TransformerDecoder Architecture is supported"
+        assert config["model"]["@architectures"] == "TransformerDecoder", (
+            "Only TransformerDecoder Architecture is supported"
+        )
 
         with self.fabric.init_module(empty_init=True):
             self.prefill_model = build_model(

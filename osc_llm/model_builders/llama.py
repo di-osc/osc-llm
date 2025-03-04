@@ -1,10 +1,10 @@
 from typing import Dict
 from ..config import Config, registry
-from .base import HFModelHelper
+from .base import HFModelBuilder
 
 
-@registry.model_helpers.register("LlamaForCausalLM")
-class LlamaHelper(HFModelHelper):
+@registry.model_builders.register("LlamaForCausalLM")
+class LlamaBuilder(HFModelBuilder):
     hf_architecture = "LlamaForCausalLM"
 
     @property

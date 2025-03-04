@@ -1,5 +1,5 @@
 from typing import Union, List, Optional, Generator
-from lightning import Fabric
+from lightning_fabric import Fabric
 from time import perf_counter
 import sys
 from ..samplers import Sampler, TopK

@@ -1,15 +1,16 @@
 import json
 from pathlib import Path
-from typing import Dict, Union, Tuple
+from typing import Dict
 import torch
 import torch.nn as nn
 from ..config import Config, registry
 from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
+from ..utils import build_model
 from wasabi import msg
 
 
-class HFModelHelper:
+class HFModelBuilder:
     """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
@@ -19,9 +20,9 @@ class HFModelHelper:
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json", "r") as f:
             self.hf_config = json.load(f)
-        assert (
-            self.hf_architecture in self.hf_config["architectures"]
-        ), f'Only support {self.hf_architecture} model, current model is {self.hf_config["architectures"]}'
+        assert self.hf_architecture in self.hf_config["architectures"], (
+            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        )
         try:
             self.tokenizer = Tokenizer(self.checkpoint_dir)
         except Exception:
@@ -160,45 +161,3 @@ class HFModelHelper:
                 config = Config().from_str(config_str)
                 return config
         return None
-
-
-def build_model(
-    config: Union[Dict, str, Path, Config],
-    model_section: str = "model",
-    quantizer_section: str = "quantizer",
-    empty_init: bool = True,
-    quantize: bool = True,
-    return_config: bool = False,
-) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
-    """Build a model from a configuration.
-
-    Args:
-        config (Union[Dict, str, Path, Config]): the configuration to build the model from, can be a dictionary, a path to a file or a Config object.
-        model_section (str, optional): the section to look for the model in the configuration. Defaults to 'model'.
-        quantizer_section (str, optional): the section to look for the quantizer in the configuration. Defaults to 'quantizer'.
-        empty_init (bool, optional): whether to initialize the model with empty weights. Defaults to True.
-        quantize (bool, optional): whether to quantize the model. Defaults to True.
-        return_config (bool, optional): whether to return the configuration as well. Defaults to False.
-
-    Returns:
-        torch.nn.Module: the model built from the configuration.
-    """
-    if isinstance(config, (str, Path)):
-        config = Config().from_disk(config)
-    if isinstance(config, dict):
-        config = Config(data=config)
-    if empty_init:
-        with torch.device("meta"):
-            resolved = registry.resolve(config=config)
-    else:
-        resolved = registry.resolve(config=config)
-    if model_section not in resolved:
-        msg.fail(f"cannot find model section {model_section}")
-    else:
-        model = resolved[model_section]
-    if quantizer_section in resolved and quantize:
-        quantizer = resolved[quantizer_section]
-        model = quantizer.convert_for_runtime(model=model)
-    if return_config:
-        return model, config
-    return model

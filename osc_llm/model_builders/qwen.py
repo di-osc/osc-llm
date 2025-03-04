@@ -1,11 +1,11 @@
 from typing import Dict
 from ..config import Config, registry
-from .base import HFModelHelper
+from .base import HFModelBuilder
 import torch
 
 
-@registry.model_helpers.register("Qwen2ForCausalLM")
-class Qwen2Helper(HFModelHelper):
+@registry.model_builders.register("Qwen2ForCausalLM")
+class Qwen2Builder(HFModelBuilder):
     hf_architecture = "Qwen2ForCausalLM"
 
     @property
@@ -117,8 +117,8 @@ class Qwen2Helper(HFModelHelper):
         return model.eval()
 
 
-@registry.model_helpers.register("Qwen2MoeForCausalLM")
-class Qwen2MoeHelper(HFModelHelper):
+@registry.model_builders.register("Qwen2MoeForCausalLM")
+class Qwen2MoeBuilder(HFModelBuilder):
     hf_architecture = "Qwen2MoeForCausalLM"
 
     @property

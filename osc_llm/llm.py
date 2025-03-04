@@ -1,10 +1,11 @@
 from osc_llm.samplers import Sampler, TopK
-from osc_llm.utils import get_default_supported_precision, get_hf_model_helper
+from osc_llm.utils import get_default_supported_precision
+from osc_llm.model_builders import get_hf_model_builder, HFModelBuilder
 from osc_llm.architectures import TransformerDecoder
 from osc_llm.tokenizer import Tokenizer, Message
 from typing import Union, List, Optional, Generator, Iterable
 from torch.nn.attention import sdpa_kernel, SDPBackend
-from lightning import Fabric
+from lightning_fabric import Fabric
 from time import perf_counter
 import torch
 import sys
@@ -59,8 +60,8 @@ class LLM:
         )
 
     def load_model(self) -> None:
-        model_helper = get_hf_model_helper(self.checkpoint_dir)
-        self.model: TransformerDecoder = model_helper.load_model()
+        model_builder: HFModelBuilder = get_hf_model_builder(self.checkpoint_dir)
+        self.model: TransformerDecoder = model_builder.load_model()
         self.model = self.fabric.to_device(self.model)
 
         with self.fabric.init_tensor():

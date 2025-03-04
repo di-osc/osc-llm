@@ -3,7 +3,7 @@ from .chat import main as chat_main
 from .servers.openai import main as openai_main
 from .quantizers import Int8Quantizer, WeightOnlyInt4Quantizer
 from .tokenizer import Tokenizer
-from .utils import build_from_checkpoint, get_hf_model_helper
+from .utils import build_from_checkpoint
 from pathlib import Path
 from wasabi import msg
 from typing import Literal, Optional
@@ -38,19 +38,6 @@ def download_model(
             force_download=force_download,
             token=access_token,
         )
-
-
-def convert(checkpoint_dir: str, save_dir: Optional[str] = None):
-    """Convert a huggingface checkpoint to osc_transformers checkpoint.
-
-    Args:
-        checkpoint_dir: Path to the directory containing the checkpoint.
-        save_dir: Path to the directory to save the converted checkpoint. if None, the converted checkpoint will be saved in the same directory as the original checkpoint.
-    """
-    model_helper = get_hf_model_helper(checkpoint_dir)
-    if not save_dir:
-        save_dir = checkpoint_dir
-    model_helper.convert_checkpoint(save_dir=save_dir)
 
 
 def quantize_int8(checkpoint_dir: str, save_dir: str):
@@ -120,8 +107,6 @@ def quantize_int4(
 commands = {
     "download": download_model,
     "chat": chat_main,
-    "sft": {"lora": lambda: print("lora"), "full": lambda: print("full")},
-    "convert": convert,
     "quantize": {"int8": quantize_int8, "int4": quantize_int4},
     "serve": openai_main,
 }

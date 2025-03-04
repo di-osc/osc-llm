@@ -1,8 +1,9 @@
-from .base import HFModelHelper
-from ..config import Config
+from .base import HFModelBuilder
+from ..config import Config, registry
 
 
-class ChatGLM3Helper(HFModelHelper):
+@registry.model_builders.register("ChatGLMModel")
+class ChatGLM3Builder(HFModelBuilder):
     hf_architecture: str = "ChatGLMModel"
 
     @property
