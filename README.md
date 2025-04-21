@@ -42,6 +42,7 @@ llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --com
 from osc_llm import LLM
 
 llm = LLM(checkpoint_dir="checkpoints/meta-llama/Meta-Llama-3-8B-Instruct", compile=True)
+llm.warmup()  # 编译后的模型第一次运行会比较慢，所以要预热模型。
 for token in llm.generate(prompt="介绍一下你自己"):
     print(token)
 ```
