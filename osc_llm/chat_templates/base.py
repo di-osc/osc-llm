@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel
-from pathlib import Path
 from ..config import registry, Config
 
 
@@ -59,23 +60,9 @@ class ChatTemplate:
         return config
 
     @classmethod
-    def from_name(cls, name: str) -> "ChatTemplate":
+    def from_name(cls, name: str) -> ChatTemplate | None:
         template_cls = None
         for k, v in registry.chat_templates.get_all().items():
             if k in name:
                 template_cls = v
-        if template_cls is None:
-            raise ValueError(f"Chat template for {name} not found")
         return template_cls
-
-    @classmethod
-    def from_checkpoint(cls, checkpoint_dir: str) -> "ChatTemplate":
-        checkpoint_dir = Path(checkpoint_dir)
-        config_path: Path = checkpoint_dir / "config.cfg"
-        if config_path.exists():
-            config = Config().from_disk(config_path)
-            if "chat_template" in config:
-                return registry.chat_templates.get(
-                    config["chat_template"]["@chat_templates"]
-                )
-        return cls.from_name(checkpoint_dir.stem)

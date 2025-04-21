@@ -24,11 +24,7 @@ class Tokenizer:
         self.bos_id = None
         self.eos_id = None
 
-        self.chat_template = (
-            chat_template
-            if chat_template
-            else ChatTemplate.from_checkpoint(checkpoint_dir)
-        )
+        self.chat_template = chat_template
 
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():

@@ -14,7 +14,6 @@ class HFModelBuilder:
     """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
-    checkpoint_name: str = "osc_model.pth"
 
     def __init__(self, checkpoint_dir: str):
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -23,11 +22,6 @@ class HFModelBuilder:
         assert self.hf_architecture in self.hf_config["architectures"], (
             f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
         )
-        try:
-            self.tokenizer = Tokenizer(self.checkpoint_dir)
-        except Exception:
-            msg.warn("No tokenizer found")
-            self.tokenizer = None
 
     @property
     def weight_map(self) -> Dict[str, str]:
@@ -39,12 +33,7 @@ class HFModelBuilder:
         """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
 
-    def convert_checkpoint(
-        self,
-        save_dir: str,
-        add_chat_template: bool = True,
-        save_new_states: bool = False,
-    ) -> Dict | None:
+    def convert_checkpoint(self) -> Dict[str, torch.Tensor]:
         """将huggingface模型转换为osc格式模型
 
         Args:
@@ -52,13 +41,13 @@ class HFModelBuilder:
         """
         pytorch_model = Path(self.checkpoint_dir) / "pytorch_model.bin"
         pytorch_idx_file = Path(self.checkpoint_dir) / "pytorch_model.bin.index.json"
-        if pytorch_model.exists() or pytorch_idx_file.exists():
-            sd = self.convert_pytorch_format()
         safetensors_model = Path(self.checkpoint_dir) / "model.safetensors"
         safetensors_idx_file = (
             Path(self.checkpoint_dir) / "model.safetensors.index.json"
         )
-        if safetensors_model.exists() or safetensors_idx_file.exists():
+        if pytorch_model.exists() or pytorch_idx_file.exists():
+            sd = self.convert_pytorch_format()
+        elif safetensors_model.exists() or safetensors_idx_file.exists():
             sd = self.convert_safetensor_format()
         if (
             not pytorch_model.exists()
@@ -67,23 +56,7 @@ class HFModelBuilder:
             and not safetensors_idx_file.exists()
         ):
             raise FileNotFoundError("No pytorch_model.bin or model.safetensors found")
-        if save_new_states:
-            out_dir = Path(save_dir)
-            if not out_dir.exists():
-                out_dir.mkdir(parents=True)
-            torch.save(sd, out_dir / "osc_model.pth")
-            if add_chat_template:
-                template_config = self.get_chat_template_config()
-                if template_config:
-                    config = self.osc_config.merge(template_config)
-                else:
-                    msg.warn("No chat template found")
-            config = Config(data=config, section_order=["model", "chat_template"])
-            config.to_disk(out_dir / "config.cfg")
-            if self.tokenizer:
-                self.tokenizer.save(out_dir)
-        else:
-            return sd
+        return sd
 
     def convert_pytorch_format(self):
         sd = {}
@@ -148,13 +121,22 @@ class HFModelBuilder:
 
     def load_model(self) -> nn.Module:
         model = build_model(config=self.osc_config, empty_init=True)
-        states = self.convert_checkpoint(self.checkpoint_dir, save_new_states=False)
+        states = self.convert_checkpoint()
         model = self.load_checkpoint(model=model, states=states)
         return model
 
+    def load_tokenizer(self) -> Tokenizer:
+        chat_template = ChatTemplate.from_name(self.checkpoint_dir.stem)
+        if chat_template is None:
+            chat_template = ChatTemplate.from_name(self.hf_config["architectures"][0])
+        print(chat_template)
+        assert chat_template is not None, "No chat template found"
+        tokenizer = Tokenizer(self.checkpoint_dir, chat_template=chat_template)
+        return tokenizer
+
     def get_chat_template_config(self) -> ChatTemplate:
         for k, v in registry.chat_templates.get_all().items():
-            if k in self.checkpoint_dir.name:  # 简单通过名称匹配
+            if k in self.hf_config["architectures"]:  # 简单通过名称匹配
                 config_str = f"""
                 [chat_template]
                 @chat_templates = {k}"""

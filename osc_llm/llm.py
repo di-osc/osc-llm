@@ -34,12 +34,12 @@ class LLM:
         self.fabric = Fabric(
             devices=devices, accelerator=accelerator, precision=precision
         )
-        self.tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
         self.sampler = sampler if sampler else TopK(temperature=0.8, k=200)
         self.max_length = max_length
 
         self.checkpoint_dir = checkpoint_dir
         self.model: TransformerDecoder = None
+        self.tokenizer: Tokenizer = None
         self.draft_checkpoint_dir = draft_checkpoint_dir
         self.speculate_k = speculate_k
 
@@ -63,6 +63,7 @@ class LLM:
         model_builder: HFModelBuilder = get_hf_model_builder(self.checkpoint_dir)
         self.model: TransformerDecoder = model_builder.load_model()
         self.model = self.fabric.to_device(self.model)
+        self.tokenizer = model_builder.load_tokenizer()
 
         with self.fabric.init_tensor():
             self.model.setup_kv_cache(
@@ -91,8 +92,11 @@ class LLM:
         t = perf_counter()
         prompts = ["你好啊", "介绍一下北京", "介绍一下你自己"]
         for prompt in prompts:
+            num_tokens = 0
             for token in self.generate(prompt=prompt):
-                pass
+                num_tokens += 1
+                if num_tokens > 10:
+                    break
         self.fabric.print(f"Time for warmup: {perf_counter() - t:.2f} seconds")
         self.fabric.print("\n")
 
