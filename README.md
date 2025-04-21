@@ -50,7 +50,7 @@ for token in llm.generate(prompt="介绍一下你自己"):
 
 以下huggingface中的模型结构(查看config.json)已经支持转换为osc-llm格式:
 - **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
-- **Qwen2ForCausalLM**: qwen1.5系列。
+- **Qwen2ForCausalLM**: qwen1.5, qwen2等。
 - **Qwen2MoeForCausalLM**: qwen2-moe系列(目前无法完成编译,推理速度很慢)。
 
 
