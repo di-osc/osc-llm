@@ -8,19 +8,28 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    # core
     "torch>=2.4.0",
     "lightning-fabric>=2.4.0.post0",
     "safetensors>=0.4.3",
+    "sentencepiece>=0.2.0",
+    "tokenizers>=0.19.1",
+    # 命令行
     "jsonargparse>=4.28.0",
+    # config系统
     "wasabi>=1.1.2",
     "confection>=0.1.4",
     "catalogue>=2.0.1",
-    "sentencepiece>=0.2.0",
-    "tokenizers>=0.19.1",
+    # 下载
+    "modelscope>=1.22.3",
+]
+
+[project.optional-dependencies]
+
+serve = [
     "pydantic>=1.10.8",
     "fastapi>=0.110.2",
     "uvicorn[standard]>=0.29.0",
-    "modelscope>=1.22.3",
 ]
 
 [[tool.uv.index]]
