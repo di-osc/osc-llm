@@ -7,8 +7,8 @@ import torch
 class TopK(Sampler):
     def __init__(
         self,
-        k: int = 10,
-        temperature: float = 1.0,
+        k: int = 100,
+        temperature: float = 0.8,
     ) -> None:
         super().__init__()
         self.temperature = 0.001 if temperature <= 0 else temperature
