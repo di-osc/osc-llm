@@ -214,10 +214,12 @@ class Tokenizer:
     def stop_ids(self) -> List[List[int]]:
         stop_ids = [torch.tensor([self.eos_id], dtype=torch.int)]
         if self.chat_template:
-            stop_ids.extend(
-                [self.encode(text) for text in self.chat_template.stop_texts]
-            )
+            for stop in self.chat_template.stop_texts:
+                stop_tokens = self.encode(stop)
+                if stop_tokens not in stop_ids:
+                    stop_ids.append(stop_tokens)
         return stop_ids
+    
 
     def has_special_chars(self, text: str) -> bool:
         """使用sentencepiece时，检查文本中是否包含特殊字符�.这种情况通常是由于一个中文字符被分割为几个token,而解码时没有合并回去导致的."""
