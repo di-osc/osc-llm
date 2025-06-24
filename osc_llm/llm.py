@@ -155,8 +155,13 @@ class LLM:
                 input_ids = next_token_id
 
     def generate(self, prompt: str, sampler: Optional[Sampler] = None) -> Iterable[str]:
-        messages = [Message(role="user", content=prompt)]
-        yield from self.chat(messages=messages, sampler=sampler)
+        if sampler:
+            self.sampler = sampler
+        msg_str = self.tokenizer.chat_template.apply_user(prompt)
+        input_ids = self.tokenizer.encode(msg_str)
+        stream = self.run(input_ids=input_ids)
+        for token in self.tokenizer.decode_stream(stream=stream):
+            yield token
 
     def chat(
         self, messages: List[Message], sampler: Optional[Sampler] = None
