@@ -52,15 +52,13 @@ class LLM:
     def setup(self, compile: bool = False, compile_prefille: bool = False) -> None:
         t = perf_counter()
         self.load_model()
-        self.fabric.print(
-            f"load model in {perf_counter() - t:.02f} seconds", file=sys.stderr
-        )
+        logger.info(f"load model in {perf_counter() - t:.02f} seconds", file=sys.stderr)
         if compile:
             self.compile_model(compile_prefill=compile_prefille)
             self.warmup()
         t = perf_counter()
         self.setup_model()
-        self.fabric.print(
+        logger.info(
             f"setup model in {perf_counter() - t:.02f} seconds", file=sys.stderr
         )
 
