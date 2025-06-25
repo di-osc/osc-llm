@@ -144,7 +144,11 @@ class HFModelBuilder:
         return None
 
     def get_default_presision(self) -> str:
-        if "torch_dtype" in self.osc_config:
-            return self.osc_config["torch_dtype"]
+        if "torch_dtype" in self.hf_config:
+            torch_precision = self.hf_config["torch_dtype"]
+            return to_fabric_precision.get(torch_precision)
 
         return get_default_supported_precision()
+
+
+to_fabric_precision = {"bfloat16": "bf16-true"}
