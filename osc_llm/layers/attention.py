@@ -30,6 +30,7 @@ class CausalSelfAttention(nn.Module):
         self,
         n_in: int,
         n_heads: int,
+        head_size: Optional[int] = None,
         q_bias: bool = False,
         k_bias: bool = False,
         v_bias: bool = False,
@@ -38,14 +39,16 @@ class CausalSelfAttention(nn.Module):
         kv_cache: Optional[KVCache] = None,
         use_qkv_proj: bool = False,
         qkv_bias: bool = False,
+        q_norm: Optional[nn.Module] = None,
+        k_norm: Optional[nn.Module] = None,
     ):
         super().__init__()
 
         assert n_in % n_heads == 0, f"dim {n_in} must be divisible by n_heads {n_heads}"
 
         self.n_heads = n_heads
-        self.head_size = n_in // n_heads
-        self.n_query_groups = n_query_groups if n_query_groups else n_heads
+        self.head_size = head_size or n_in // n_heads
+        self.n_query_groups = n_query_groups or n_heads
 
         self.use_qkv_proj = use_qkv_proj
         if not use_qkv_proj:
@@ -65,6 +68,9 @@ class CausalSelfAttention(nn.Module):
             )
 
         self.o_proj = nn.Linear(n_in, n_in, bias=o_bias)
+
+        self.q_norm = q_norm
+        self.k_norm = k_norm
 
         self.kv_cache: KVCache = kv_cache
 
@@ -109,6 +115,12 @@ class CausalSelfAttention(nn.Module):
                 .permute(0, 2, 1, 3)
             )
 
+        if self.q_norm is not None:
+            q = self.q_norm(q)
+
+        if self.k_norm is not None:
+            k = self.k_norm(k)
+
         if (cos is not None) and (sin is not None):
             q = apply_rope(q, cos, sin)
             k = apply_rope(k, cos, sin)
@@ -138,7 +150,6 @@ class CausalSelfAttention(nn.Module):
                 .expand(-1, -1, self.n_heads // self.n_query_groups, -1, -1)
                 .reshape(B, self.n_heads, -1, self.head_size)
             )
-
         o = self.scaled_dot_product_attention(q, k, v, mask=attention_mask)
 
         o = o.reshape(B, L, D)
