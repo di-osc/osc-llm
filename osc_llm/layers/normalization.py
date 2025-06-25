@@ -9,14 +9,39 @@ class RMSNorm(torch.nn.Module):
         self.weight = torch.nn.Parameter(torch.ones(n_in))
         self.eps = eps
 
-    def forward(self, x):
-        norm = torch.mean(x.pow(2), dim=-1, keepdim=True) + self.eps
-        x = x * torch.rsqrt(norm)
-        x = x * self.weight
+    def rms_forward(
+        self,
+        x: torch.Tensor,
+    ) -> torch.Tensor:
+        orig_dtype = x.dtype
+        x = x.to(torch.float32)
+        var = x.pow(2).mean(dim=-1, keepdim=True)
+        x.mul_(torch.rsqrt(var + self.eps))
+        x = x.to(orig_dtype).mul_(self.weight)
         return x
 
-    def reset_parameters(self):
-        self.weight.data.fill_(1.0)
+    def add_rms_forward(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        orig_dtype = x.dtype
+        x = x.to(torch.float32).add_(residual.to(torch.float32))
+        residual = x.to(orig_dtype)
+        var = x.pow(2).mean(dim=-1, keepdim=True)
+        x.mul_(torch.rsqrt(var + self.eps))
+        x = x.to(orig_dtype).mul_(self.weight)
+        return x, residual
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor | None = None,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            return self.rms_forward(x)
+        else:
+            return self.add_rms_forward(x, residual)
 
 
 @registry.layers.register("LayerNorm")
