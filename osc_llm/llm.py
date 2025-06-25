@@ -1,13 +1,16 @@
+from typing import Union, List, Optional, Generator, Iterable
+import sys
+from time import perf_counter
+
+from torch.nn.attention import sdpa_kernel, SDPBackend
+from lightning_fabric import Fabric
+import torch
+from loguru import logger
+
 from osc_llm.samplers import Sampler, TopK
 from osc_llm.model_builders import get_hf_model_builder
 from osc_llm.architectures import TransformerDecoder
 from osc_llm.tokenizer import Tokenizer, Message
-from typing import Union, List, Optional, Generator, Iterable
-from torch.nn.attention import sdpa_kernel, SDPBackend
-from lightning_fabric import Fabric
-from time import perf_counter
-import torch
-import sys
 
 torch.set_float32_matmul_precision("high")
 
@@ -31,6 +34,7 @@ class LLM:
         self.model_builder = get_hf_model_builder(checkpoint_dir)
         if not precision:
             precision = self.model_builder.get_default_presision()
+            logger.info(f"auto set precision to {precision}")
         self.fabric = Fabric(
             devices=devices, accelerator=accelerator, precision=precision
         )
@@ -53,6 +57,7 @@ class LLM:
         )
         if compile:
             self.compile_model(compile_prefill=compile_prefille)
+            self.warmup()
         t = perf_counter()
         self.setup_model()
         self.fabric.print(

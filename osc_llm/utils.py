@@ -1,10 +1,12 @@
 from pathlib import Path
-from .config import registry, Config
 from typing import Optional, Union, Dict, Tuple
-from wasabi import msg
 import statistics
-import torch
 import uuid
+
+import torch
+from wasabi import msg
+
+from .config import registry, Config
 
 
 def find_multiple(n: int, k: int) -> int:
