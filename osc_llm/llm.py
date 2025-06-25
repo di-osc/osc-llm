@@ -92,10 +92,10 @@ class LLM:
         # warmup
         self.fabric.print("Warming up the model...", file=sys.stderr)
         t = perf_counter()
-        prompts = ["你好啊", "介绍一下北京", "介绍一下你自己"]
+        prompts = ["你好啊", "你叫什么名字", "介绍一下你自己"]
         for prompt in prompts:
             num_tokens = 0
-            for token in self.generate(prompt=prompt):
+            for _ in self.generate(prompt=prompt):
                 num_tokens += 1
                 if num_tokens > 10:
                     break
