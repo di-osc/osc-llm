@@ -67,7 +67,7 @@ class CausalSelfAttention(nn.Module):
                 bias=qkv_bias,
             )
 
-        self.o_proj = nn.Linear(n_in, n_in, bias=o_bias)
+        self.o_proj = nn.Linear(self.n_heads * self.head_size, n_in, bias=o_bias)
 
         self.q_norm = q_norm
         self.k_norm = k_norm
@@ -152,7 +152,7 @@ class CausalSelfAttention(nn.Module):
             )
         o = self.scaled_dot_product_attention(q, k, v, mask=attention_mask)
 
-        o = o.reshape(B, L, D)
+        o = o.reshape(B, L, -1)
 
         o = self.o_proj(o)
 

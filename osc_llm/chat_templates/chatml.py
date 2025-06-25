@@ -4,8 +4,8 @@ from typing import List
 
 
 @registry.chat_templates.register("Yi")
-@registry.chat_templates.register("Qwen")
 @registry.chat_templates.register("ChatML")
+@registry.chat_templates.register("Qwen2ForCausalLM")
 class ChatMLChatTemplate(ChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]
@@ -26,3 +26,10 @@ class ChatMLChatTemplate(ChatTemplate):
         if add_generate_prompt:
             prompt += cls.generate_prompt
         return prompt
+
+
+@registry.chat_templates.register("Qwen3ForCausalLM")
+class Qwen3ChatTemplate(ChatMLChatTemplate):
+    default_system: str = "You are a helpful assistant."
+    stop_texts: List[str] = ["<|im_end|>"]
+    generate_prompt: str = "<|im_start|>assistant\n"
