@@ -30,28 +30,27 @@ osc-llm是一款轻量级别的模型推理框架, 专注于延迟和易用性�
 
 命令行
 ```bash
-# 下面以llama3为例演示如何转换为osc-llm格式,并进行聊天。
-# 假设你已经下载好huggingface的llama3模型在checkpoints/meta-llama目录下
 # 聊天(使用编译功能加速推理速度,需要等待几分钟编译时间)
-llm chat --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --compile true
-# 部署
-llm serve --checkpoint_dir checkpoints/meta-llama/Meta-Llama-3-8B-Instruct --compile true
+llm chat --checkpoint_dir checkpoints/Qwen/Qwen3-0.6B --compile true
+# 部署openai api
+llm serve --checkpoint_dir checkpoints/Qwen/Qwen3-0.6B --compile true
 ```
 使用LLM
 ```python
 from osc_llm import LLM
 
-llm = LLM(checkpoint_dir="checkpoints/meta-llama/Meta-Llama-3-8B-Instruct", compile=True)
+llm = LLM(checkpoint_dir="checkpoints/Qwen/Qwen3-0.6B", compile=True)
 for token in llm.generate(prompt="介绍一下你自己"):
     print(token)
 ```
 
 ## 模型支持
 
-以下huggingface中的模型结构(查看config.json)已经支持转换为osc-llm格式:
+以下huggingface中的模型(查看config.json)已经得到支持:
 - **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
 - **Qwen2ForCausalLM**: qwen1.5, qwen2等。
 - **Qwen2MoeForCausalLM**: qwen2-moe系列(目前无法完成编译,推理速度很慢)。
+- **Qwen3ForCausalLM**: qwen3等。
 
 
 ### 致敬
