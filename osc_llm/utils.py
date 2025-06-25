@@ -101,7 +101,7 @@ def benchmark(model, num_iters=10, **inputs):
     msg.info(f"Median time: {median_time:.4f} s")
 
 
-def get_default_supported_precision(training: bool) -> str:
+def get_default_supported_precision(training: bool = False) -> str:
     """Return default precision that is supported by the hardware: either `bf16` or `16`.
 
     Args:

@@ -1,6 +1,5 @@
 from osc_llm.samplers import Sampler, TopK
-from osc_llm.utils import get_default_supported_precision
-from osc_llm.model_builders import get_hf_model_builder, HFModelBuilder
+from osc_llm.model_builders import get_hf_model_builder
 from osc_llm.architectures import TransformerDecoder
 from osc_llm.tokenizer import Tokenizer, Message
 from typing import Union, List, Optional, Generator, Iterable
@@ -29,8 +28,9 @@ class LLM:
         compile: bool = False,
         compile_prefill: bool = False,
     ):
+        self.model_builder = get_hf_model_builder(checkpoint_dir)
         if not precision:
-            precision = get_default_supported_precision(training=False)
+            precision = self.model_builder.get_default_presision()
         self.fabric = Fabric(
             devices=devices, accelerator=accelerator, precision=precision
         )
@@ -60,10 +60,9 @@ class LLM:
         )
 
     def load_model(self) -> None:
-        model_builder: HFModelBuilder = get_hf_model_builder(self.checkpoint_dir)
-        self.model: TransformerDecoder = model_builder.load_model()
+        self.model: TransformerDecoder = self.model_builder.load_model()
         self.model = self.fabric.to_device(self.model)
-        self.tokenizer = model_builder.load_tokenizer()
+        self.tokenizer = self.model_builder.load_tokenizer()
 
         with self.fabric.init_tensor():
             self.model.setup_kv_cache(

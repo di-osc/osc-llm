@@ -6,7 +6,7 @@ import torch.nn as nn
 from ..config import Config, registry
 from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
-from ..utils import build_model
+from ..utils import build_model, get_default_supported_precision
 from wasabi import msg
 
 
@@ -129,7 +129,6 @@ class HFModelBuilder:
         chat_template = ChatTemplate.from_name(self.checkpoint_dir.stem)
         if chat_template is None:
             chat_template = ChatTemplate.from_name(self.hf_config["architectures"][0])
-        print(chat_template)
         assert chat_template is not None, "No chat template found"
         tokenizer = Tokenizer(self.checkpoint_dir, chat_template=chat_template)
         return tokenizer
@@ -143,3 +142,9 @@ class HFModelBuilder:
                 config = Config().from_str(config_str)
                 return config
         return None
+
+    def get_default_presision(self) -> str:
+        if "torch_dtype" in self.osc_config:
+            return self.osc_config["torch_dtype"]
+
+        return get_default_supported_precision()
