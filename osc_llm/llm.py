@@ -125,9 +125,8 @@ class LLM:
             input_pos = self.fabric.to_device(torch.arange(len(input_ids)))
         if stop_ids is None:
             stop_ids = self.tokenizer.stop_ids
-        stop_ids = [
-            self.fabric.to_device(stop_id) for stop_id in self.tokenizer.stop_ids
-        ]
+        # 确保使用传入（或默认）的 stop_ids，并移动到目标设备
+        stop_ids = [self.fabric.to_device(stop_id) for stop_id in stop_ids]
 
         max_length = self.max_length if self.max_length else self.model.block_size
 
@@ -145,10 +144,10 @@ class LLM:
                 input_ids = input_ids.view(1, -1)
                 next_token_id = self.decode(input_ids=input_ids, input_pos=input_pos)
                 yield_ids.append(next_token_id)
-                # 遍历每一个stop ids
+                # 遍历每一个 stop 序列，逐元素比较，避免 Tensor 的布尔歧义
                 for ids in stop_ids:
                     if len(yield_ids) == len(ids):
-                        if all(a == b for a, b in zip(yield_ids, ids)):
+                        if all(int(a.item()) == int(b.item()) for a, b in zip(yield_ids, ids)):
                             return
                 if len(yield_ids) >= max_stop_len:
                     yield from yield_ids

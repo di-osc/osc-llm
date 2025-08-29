@@ -214,10 +214,14 @@ class Tokenizer:
     def stop_ids(self) -> List[List[int]]:
         stop_ids = [torch.tensor([self.eos_id], dtype=torch.int)]
         if self.chat_template:
+            # 使用 Python 列表进行元素级比较，避免直接对 Tensor 执行成员判断产生歧义
+            existing = {tuple(t.tolist()) for t in stop_ids}
             for stop in self.chat_template.stop_texts:
                 stop_tokens = self.encode(stop)
-                if stop_tokens not in stop_ids:
+                key = tuple(stop_tokens.tolist())
+                if key not in existing:
                     stop_ids.append(stop_tokens)
+                    existing.add(key)
         return stop_ids
 
     def has_special_chars(self, text: str) -> bool:
