@@ -1,9 +1,12 @@
-from ..config import registry
-import torch.nn as nn
 from copy import deepcopy
-import torch
 from typing import Optional
+
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
+
+from ..config import registry
+from .activation import SiluAndMul
 
 
 @registry.layers.register("GLU")
@@ -33,24 +36,29 @@ class GLU(nn.Module):
         return x
 
 
-@registry.layers.register("SwiGLU.v1")
 @registry.layers.register("SwiGLU")
-def SwiGLU(
-    n_in: int,
-    n_hidden: int,
-    up_bias: bool = False,
-    gate_bias: bool = False,
-    down_bias: bool = False,
-) -> nn.Module:
-    """Swish激活函数的门控线性单元"""
-    return GLU(
-        n_in=n_in,
-        n_hidden=n_hidden,
-        activation=nn.SiLU(),
-        up_bias=up_bias,
-        gate_bias=gate_bias,
-        down_bias=down_bias,
-    )
+class SwiGLU(nn.Module):
+    def __init__(
+        self,
+        n_in: int,
+        n_hidden: int,
+        up_bias: bool = False,
+        gate_bias: bool = False,
+        down_bias: bool = False,
+    ):
+        super().__init__()
+        self.up_proj = nn.Linear(n_in, n_hidden, bias=up_bias)
+        self.gate_proj = nn.Linear(n_in, n_hidden, bias=gate_bias)
+        self.down_proj = nn.Linear(n_hidden, n_in, bias=down_bias)
+        self.activation = SiluAndMul()
+
+    @torch.compile
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x1 = self.up_proj(x)
+        x2 = self.gate_proj(x)
+        x = self.activation(x2, x1)
+        x = self.down_proj(x)
+        return x
 
 
 @registry.layers.register("SwiGLU.v2")

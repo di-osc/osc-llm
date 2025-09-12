@@ -1,13 +1,15 @@
 import json
 from pathlib import Path
 from typing import Dict
+
 import torch
 import torch.nn as nn
+from wasabi import msg
+
 from ..config import Config, registry
 from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
 from ..utils import build_model, get_default_supported_precision
-from wasabi import msg
 
 
 class HFModelBuilder:
@@ -19,9 +21,9 @@ class HFModelBuilder:
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json", "r") as f:
             self.hf_config = json.load(f)
-        assert self.hf_architecture in self.hf_config["architectures"], (
-            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
-        )
+        assert (
+            self.hf_architecture in self.hf_config["architectures"]
+        ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
 
     @property
     def weight_map(self) -> Dict[str, str]:

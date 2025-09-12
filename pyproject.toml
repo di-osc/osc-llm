@@ -9,11 +9,11 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     # core
-    "torch>=2.4.0",
-    "lightning-fabric>=2.4.0.post0",
+    "torch>=2.8.0",
     "safetensors>=0.4.3",
     "sentencepiece>=0.2.0",
     "tokenizers>=0.19.1",
+    "transformers>=4.48.2",
     # 命令行
     "jsonargparse>=4.28.0",
     # config系统
@@ -23,6 +23,8 @@ dependencies = [
     # 下载
     "modelscope>=1.22.3",
     "loguru>=0.7.3",
+    # 其他
+    "xxhash>=3.5.0",
 ]
 
 [project.optional-dependencies]

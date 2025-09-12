@@ -1,9 +1,12 @@
-import torch.nn as nn
+import math
+
 import torch
+import torch.distributed as dist
+import torch.nn as nn
 import torch.nn.functional as F
+
 from ..config import registry
 from ..utils import find_multiple
-import math
 
 
 @registry.layers.register("Linear")
@@ -76,9 +79,9 @@ class WeightOnlyInt4Linear(torch.nn.Module):
         self.inner_k_tiles = inner_k_tiles
 
         assert out_features % 8 == 0, "require out_features % 8 == 0"
-        assert in_features % (inner_k_tiles * 16) == 0, (
-            "require in_features % (innerKTiles * 16) == 0"
-        )
+        assert (
+            in_features % (inner_k_tiles * 16) == 0
+        ), "require in_features % (innerKTiles * 16) == 0"
         self.register_buffer(
             "weight",
             torch.empty(
@@ -181,3 +184,87 @@ class LoRALinear(nn.Module):
             return
         self.linear.weight.data += self.get_delta_w()
         self.merged = True
+
+
+def divide(numerator, denominator):
+    assert numerator % denominator == 0
+    return numerator // denominator
+
+
+class ColumnParallelLinear(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        bias: bool = False,
+        tp_dim: int | None = 0,
+    ):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.tp_dim = tp_dim
+        self.tp_rank = dist.get_rank()
+        self.tp_size = dist.get_world_size()
+        self.input_size_per_partition = input_size
+        self.output_size_per_partition = divide(output_size, self.tp_size)
+
+        self.weight = nn.Parameter(
+            torch.empty(self.output_size_per_partition, self.input_size)
+        )
+        self.weight.weight_loader = self.weight_loader
+        if bias:
+            self.bias = nn.Parameter(torch.empty(self.output_size_per_partition))
+            self.bias.weight_loader = self.weight_loader
+        else:
+            self.register_parameter("bias", None)
+
+    def weight_loader(self, param: nn.Parameter, loaded_weight: torch.Tensor):
+        param_data = param.data
+        shard_size = param_data.size(self.tp_dim)
+        start_idx = self.tp_rank * shard_size
+        loaded_weight = loaded_weight.narrow(self.tp_dim, start_idx, shard_size)
+        param_data.copy_(loaded_weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.linear(x, self.weight, self.bias)
+
+
+class RowParallelLinear(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        bias: bool = False,
+        tp_dim: int | None = 1,
+    ):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.tp_dim = tp_dim
+        self.tp_rank = dist.get_rank()
+        self.tp_size = dist.get_world_size()
+        self.input_size_per_partition = divide(input_size, self.tp_size)
+        self.output_size_per_partition = output_size
+
+        self.weight = nn.Parameter(
+            torch.empty(self.output_size, self.input_size_per_partition)
+        )
+        self.weight.weight_loader = self.weight_loader
+        if bias:
+            self.bias = nn.Parameter(torch.empty(self.output_size))
+            self.bias.weight_loader = self.weight_loader
+        else:
+            self.register_parameter("bias", None)
+
+    def weight_loader(self, param: nn.Parameter, loaded_weight: torch.Tensor):
+        param_data = param.data
+        shard_size = param_data.size(self.tp_dim)
+        start_idx = self.tp_rank * shard_size
+        loaded_weight = loaded_weight.narrow(self.tp_dim, start_idx, shard_size)
+        param_data.copy_(loaded_weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = F.linear(x, self.weight, self.bias if self.tp_rank == 0 else None)
+        if self.tp_size > 1:
+            dist.all_reduce(y)
+        return y

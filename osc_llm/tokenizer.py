@@ -11,7 +11,7 @@ class Tokenizer:
     def __init__(
         self,
         checkpoint_dir: Union[Path, str],
-        chat_template: Optional[ChatTemplate] = None,
+        chat_template: ChatTemplate | str | None = None,
     ) -> None:
         checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir = checkpoint_dir
@@ -23,6 +23,9 @@ class Tokenizer:
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
+
+        if chat_template is None:
+            chat_template = ChatTemplate.from_checkpoint_dir(checkpoint_dir)
 
         self.chat_template = chat_template
 
@@ -112,7 +115,12 @@ class Tokenizer:
         bos: Optional[bool] = None,
         eos: bool = False,
         max_length: int = -1,
+        use_chat_template: bool = True,
     ) -> torch.Tensor:
+        if use_chat_template:
+            string = self.chat_template.apply_user(
+                user=string, add_generate_prompt=True
+            )
         if self.backend == "huggingface":
             self.processor: HFTokenizer
             tokens = self.processor.encode(string, add_special_tokens=False).ids

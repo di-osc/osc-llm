@@ -1,5 +1,6 @@
 from .llama import LlamaBuilder
-from .qwen import Qwen2Builder, Qwen2MoeBuilder
+from .qwen2 import Qwen2Builder
+from .qwen3 import Qwen3Builder
 from .chatglm import ChatGLM3Builder
 from .base import HFModelBuilder
 from ..config import registry
@@ -41,6 +42,6 @@ __all__ = [
     "HFModelBuilder",
     "LlamaBuilder",
     "Qwen2Builder",
-    "Qwen2MoeBuilder",
+    "Qwen3Builder",
     "ChatGLM3Builder",
 ]

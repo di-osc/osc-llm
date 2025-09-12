@@ -29,6 +29,7 @@ class ChatMLChatTemplate(ChatTemplate):
 
 
 @registry.chat_templates.register("Qwen3ForCausalLM")
+@registry.chat_templates.register("Qwen/Qwen3-0.6B")
 class Qwen3ChatTemplate(ChatMLChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]

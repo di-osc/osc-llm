@@ -85,9 +85,9 @@ class StaticKVCache(KVCache):
         Returns:
             Tuple[Tensor, Tensor]: 更新后的k和v.
         """
-        assert hasattr(self, "k_cache") and hasattr(self, "v_cache"), (
-            "KVCache must be setup before updating. Use `setup` method to setup KVCache"
-        )
+        assert hasattr(self, "k_cache") and hasattr(
+            self, "v_cache"
+        ), "KVCache must be setup before updating. Use `setup` method to setup KVCache"
 
         self.k_cache: torch.Tensor = self.k_cache.to(k.dtype)
         self.v_cache: torch.Tensor = self.v_cache.to(v.dtype)

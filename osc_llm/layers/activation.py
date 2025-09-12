@@ -1,5 +1,7 @@
-from ..config import registry
 import torch.nn as nn
+import torch
+import torch.nn.functional as F
+from ..config import registry
 
 
 @registry.layers.register("SiLU")
@@ -30,3 +32,13 @@ def Tanh() -> nn.Module:
 @registry.layers.register("Softmax")
 def Softmax(dim: int) -> nn.Module:
     return nn.Softmax(dim=dim)
+
+
+@registry.layers.register("SiluAndMul")
+class SiluAndMul(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    @torch.compile
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return F.silu(x) * y

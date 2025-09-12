@@ -9,6 +9,7 @@ class RMSNorm(torch.nn.Module):
         self.weight = torch.nn.Parameter(torch.ones(n_in))
         self.eps = eps
 
+    @torch.compile
     def rms_forward(
         self,
         x: torch.Tensor,
@@ -20,6 +21,7 @@ class RMSNorm(torch.nn.Module):
         x = x.to(orig_dtype).mul_(self.weight)
         return x
 
+    @torch.compile
     def add_rms_forward(
         self,
         x: torch.Tensor,
