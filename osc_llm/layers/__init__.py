@@ -1,5 +1,5 @@
 from .normalization import RMSNorm, LayerNorm
-from .attention import CausalSelfAttention
+from .attention import PagedAttention, AttentionContext
 from .head import LMHead
 from .linear import Linear, WeightOnlyInt4Linear, Int8Linear
 from .embedding import TokenEmbedding, TokenEmbeddingPlus
@@ -7,12 +7,14 @@ from .feedforward import GLU, SwiGLU, GeGLU, SparseMoe, SwiGLUV2
 from .activation import ReLU, SiLU, GELU
 from .kv_cache import StaticKVCache
 from .dropout import Dropout
+from .sampler import Sampler
 
 
 __all__ = [
     "RMSNorm",
     "LayerNorm",
-    "CausalSelfAttention",
+    "PagedAttention",
+    "AttentionContext",
     "LMHead",
     "TokenEmbedding",
     "TokenEmbeddingPlus",
@@ -29,4 +31,5 @@ __all__ = [
     "Int8Linear",
     "Dropout",
     "SparseMoe",
+    "Sampler",
 ]

@@ -1,12 +1,12 @@
-from .base import Quantizer
-from ..layers import Int8Linear
-from ..config import registry
-from confection import Config
 import torch.nn as nn
 import torch
 
+from .base import Quantizer
+from ..layers import Int8Linear
+from ..config import registry
 
-@registry.quantizers.register("Int8Quantizer")
+
+@registry.quantizers.register("int8")
 class Int8Quantizer(Quantizer):
     def quantize(self, model: nn.Module) -> nn.Module:
         for name, children in model.named_children():
@@ -38,15 +38,6 @@ class Int8Quantizer(Quantizer):
     def convert_for_runtime(self, model: nn.Module) -> nn.Module:
         model = self._replace_linear_weight_only_int8_per_channel(model)
         return model
-
-    @property
-    def quantizer_config(self):
-        config_str = """
-        [quantizer]
-        @quantizers = "Int8Quantizer"
-        """
-        config = Config().from_str(config_str)
-        return config
 
     def _replace_linear_weight_only_int8_per_channel(
         self, module: nn.Module

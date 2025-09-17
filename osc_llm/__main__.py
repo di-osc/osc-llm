@@ -4,7 +4,6 @@ from random import randint
 from pathlib import Path
 from typing import Literal, Optional
 
-from wasabi import msg
 from jsonargparse import CLI
 
 
@@ -47,78 +46,6 @@ def download_model(
         )
 
 
-def quantize_int8(checkpoint_dir: str, save_dir: str):
-    """
-    Quantize the osc model to int8.
-
-    Args:
-        checkpoint_dir: Path to the osc model directory containing the checkpoint.
-        save_dir: Path to the directory to save the quantized model.
-    """
-    from .tokenizer import Tokenizer
-    from .utils import build_from_checkpoint
-    from .quantizers import Int8Quantizer
-    import torch
-
-    save_dir = Path(save_dir)
-    if save_dir == checkpoint_dir:
-        msg.warn("The quantized model will replace the original model.")
-    if not save_dir.exists():
-        save_dir.mkdir(parents=True)
-    tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
-    model, config = build_from_checkpoint(
-        checkpoint_dir=checkpoint_dir, return_config=True
-    )
-    quantizer = Int8Quantizer()
-    model = quantizer.quantize(model)
-    config = config.merge(quantizer.quantizer_config)
-    torch.save(model.state_dict(), Path(save_dir) / "osc_model.pth")
-    config.to_disk(Path(save_dir) / "config.cfg")
-    tokenizer.save(save_dir)
-
-
-def quantize_int4(
-    checkpoint_dir: str,
-    save_dir: str,
-    groupsize: Literal[32, 64, 128, 256] = 32,
-    k: Literal[2, 4, 8] = 8,
-    padding: bool = True,
-    device: str = "cuda:0",
-):
-    """
-    Quantize the osc model to int4.
-
-    Args:
-        checkpoint_dir: Path to the osc model directory containing the checkpoint.
-        save_dir: Path to the directory to save the quantized model.
-        groupsize: The groupsize to use for the quantization.
-        k: The k parameter to use for the quantization.
-        padding: Whether to pad the model.
-        device: The device to use for the quantization.
-    """
-    from .quantizers import WeightOnlyInt4Quantizer
-    import torch
-
-    save_dir = Path(save_dir)
-    if save_dir == checkpoint_dir:
-        msg.warn("The quantized model will replace the original model.")
-    if not Path(save_dir).exists():
-        Path(save_dir).mkdir(parents=True)
-    tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
-    model, config = build_from_checkpoint(
-        checkpoint_dir=checkpoint_dir, return_config=True
-    )
-    model.to(device)
-    quantizer = WeightOnlyInt4Quantizer(
-        groupsize=groupsize, inner_k_tiles=k, padding_allowed=padding
-    )
-    model = quantizer.quantize(model)
-    config = config.merge(quantizer.quantizer_config)
-    torch.save(model.state_dict(), Path(save_dir) / "osc_model.pth")
-    config.to_disk(Path(save_dir) / "config.cfg")
-    tokenizer.save(save_dir)
-
-
 def bench(
     model: str,
     num_seqs: int = 64,
@@ -130,7 +57,6 @@ def bench(
     max_model_len: int = 4096,
     enforce_eager: bool = False,
     gpu_memory_utilization: float = 0.5,
-    tensor_parallel_size: int = 1,
     kvcache_block_size: int = 256,
     num_kvcache_blocks: int = -1,
 ):
@@ -148,7 +74,6 @@ def bench(
         max_model_len: The maximum model length.
         enforce_eager: Whether to enforce eager mode.
         gpu_memory_utilization: The GPU memory utilization.
-        tensor_parallel_size: The tensor parallel size.
         kvcache_block_size: The KV cache block size.
         num_kvcache_blocks: The number of KV cache blocks.
     """
@@ -164,7 +89,6 @@ def bench(
         max_model_len=max_model_len,
         enforce_eager=enforce_eager,
         gpu_memory_utilization=gpu_memory_utilization,
-        tensor_parallel_size=tensor_parallel_size,
         kvcache_block_size=kvcache_block_size,
         num_kvcache_blocks=num_kvcache_blocks,
     )
@@ -211,7 +135,6 @@ def serve_openai(
 
 commands = {
     "download": download_model,
-    "quantize": {"int8": quantize_int8, "int4": quantize_int4},
     "serve": serve_openai,
     "bench": bench,
 }

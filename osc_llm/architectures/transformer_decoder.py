@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, List, Any
+from typing import Mapping, List, Any
 from copy import deepcopy
 
 import torch
@@ -27,13 +27,13 @@ class TransformerDecoderLayer(nn.Module):
     def forward(
         self,
         x,
-        input_pos: Optional[torch.Tensor] = None,
+        attn_ctx: AttentionContext,
     ):
         if self.prenorm:
             x = (
                 self.attention(
                     self.attention_norm(x),
-                    input_pos=input_pos,
+                    attn_ctx=attn_ctx,
                 )
                 + x
             )
@@ -42,7 +42,7 @@ class TransformerDecoderLayer(nn.Module):
             x = self.attention_norm(
                 self.attention(
                     x,
-                    input_pos=input_pos,
+                    attn_ctx=attn_ctx,
                 )
                 + x
             )
@@ -84,17 +84,17 @@ class TransformerDecoder(nn.Module):
         self.head = head
 
         self.max_length = max_length
-        self.attn_ctx: AttentionContext = AttentionContext()
-        for layer in self.layers:
-            layer.attention.setup(self.attn_ctx, init_kv_cache=False)
 
     def forward(
-        self, input_ids: torch.Tensor, input_pos: Optional[torch.Tensor] = None
+        self,
+        input_ids: torch.Tensor,
+        attn_ctx: AttentionContext,
     ):
         """Forward pass of the TransformerDecoder.
 
         Args:
             input_ids (torch.Tensor): Input token ids. shape = (seq_length)
+            attn_ctx (AttentionContext): Attention context.
             input_pos (Optional[torch.Tensor], optional): Input position ids. prefill stage shape = (seq_length) decode stage shape = (batch_size, 1). Defaults to None.
         """
         assert len(input_ids.shape) == 1, "input must be 1d"
@@ -105,23 +105,24 @@ class TransformerDecoder(nn.Module):
                 f"Cannot forward sequence of length {L}, max seq length is only {self.max_length}."
             )
 
-        if input_pos is None:
-            input_pos = torch.arange(L, dtype=torch.int32)
+        if attn_ctx.input_pos is None:
+            attn_ctx.input_pos = torch.arange(L, dtype=torch.int32)
 
         x = self.embedding(input_ids)
 
         for layer in self.layers:
-            x = layer(x, input_pos=input_pos)
+            x = layer(x, attn_ctx=attn_ctx)
 
         if self.prenorm:
             x = self.head_norm(x)
 
+        if attn_ctx.is_prefill:
+            last_indices = attn_ctx.cu_seqlens_q[1:] - 1
+            x = x[last_indices].contiguous()
+
         return x
 
     def compute_logits(self, x: torch.Tensor) -> torch.Tensor:
-        if self.attn_ctx.is_prefill:
-            last_indices = self.attn_ctx.cu_seqlens_q[1:] - 1
-            x = x[last_indices].contiguous()
         return self.head(x)
 
     def load_state_dict(
@@ -137,7 +138,7 @@ class TransformerDecoder(nn.Module):
             include_embeddings (bool, optional): Include embeddings in the model size. Defaults to True.
 
         Returns:
-            int: Model size
+            int: Model size in MB
         """
         import itertools
 
@@ -151,57 +152,8 @@ class TransformerDecoder(nn.Module):
                     for p in itertools.chain(children.parameters(), children.buffers())
                 ]
             )
-        return model_size
+        return model_size / 1024 / 1024
 
     def set_kv_cache(self, num_kvcache_blocks: int, block_size: int) -> None:
-        self.attn_ctx.num_kvcache_blocks = num_kvcache_blocks
-        self.attn_ctx.block_size = block_size
         for layer in self.layers:
-            layer.attention.setup(self.attn_ctx, init_kv_cache=True)
-
-    def set_attn_ctx(
-        self,
-        is_prefill: bool = False,
-        cu_seqlens_q: torch.Tensor = None,
-        cu_seqlens_k: torch.Tensor = None,
-        max_seqlen_q: int = 0,
-        max_seqlen_k: int = 0,
-        slot_mapping: torch.Tensor = None,
-        context_lens: torch.Tensor = None,
-        block_tables: torch.Tensor = None,
-    ):
-        self.attn_ctx.is_prefill = is_prefill
-        self.attn_ctx.cu_seqlens_q = cu_seqlens_q
-        self.attn_ctx.cu_seqlens_k = cu_seqlens_k
-        self.attn_ctx.max_seqlen_q = max_seqlen_q
-        self.attn_ctx.max_seqlen_k = max_seqlen_k
-        self.attn_ctx.slot_mapping = slot_mapping
-        self.attn_ctx.context_lens = context_lens
-        self.attn_ctx.block_tables = block_tables
-
-    def reset_attn_ctx(self):
-        self.attn_ctx.reset_run_info()
-
-    def prepare_prefill(
-        self,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        max_seqlen_q,
-        max_seqlen_k,
-        slot_mapping,
-        block_tables,
-    ):
-        self.attn_ctx.is_prefill = True
-        self.attn_ctx.cu_seqlens_q = cu_seqlens_q
-        self.attn_ctx.cu_seqlens_k = cu_seqlens_k
-        self.attn_ctx.max_seqlen_q = max_seqlen_q
-        self.attn_ctx.max_seqlen_k = max_seqlen_k
-        self.attn_ctx.slot_mapping = slot_mapping
-        self.attn_ctx.context_lens = None
-        self.attn_ctx.block_tables = block_tables
-
-    def prepare_decode(self, context_lens, block_tables, slot_mapping):
-        self.attn_ctx.is_prefill = False
-        self.attn_ctx.context_lens = context_lens
-        self.attn_ctx.block_tables = block_tables
-        self.attn_ctx.slot_mapping = slot_mapping
+            layer.attention.set_kv_cache(num_kvcache_blocks, block_size)

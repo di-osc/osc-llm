@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import torch.nn as nn
-from confection import Config
 
 
 class Quantizer(ABC):
@@ -16,8 +15,4 @@ class Quantizer(ABC):
         Args:
             model (nn.Module): 待转换模型,不需要加载模型状态字典
         """
-        raise NotImplementedError
-
-    @property
-    def quantizer_config(self) -> Config:
         raise NotImplementedError

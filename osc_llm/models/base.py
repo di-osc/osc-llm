@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union, Tuple
 
 import torch
 import torch.nn as nn
@@ -9,10 +9,10 @@ from wasabi import msg
 from ..config import Config, registry
 from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
-from ..utils import build_model, get_default_supported_precision
+from ..quantizers import Quantizer
 
 
-class HFModelBuilder:
+class HFModel:
     """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
@@ -112,6 +112,51 @@ class HFModelBuilder:
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
 
+    def build_model(
+        self,
+        config: Union[Dict, str, Path, Config],
+        model_section: str = "model",
+        empty_init: bool = True,
+        return_config: bool = False,
+    ) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
+        """Build a model from a configuration.
+
+        Args:
+            config (Union[Dict, str, Path, Config]): the configuration to build the model from, can be a dictionary, a path to a file or a Config object.
+            model_section (str, optional): the section to look for the model in the configuration. Defaults to 'model'.
+            empty_init (bool, optional): whether to initialize the model with empty weights. Defaults to True.
+            return_config (bool, optional): whether to return the configuration as well. Defaults to False.
+
+        Returns:
+            torch.nn.Module: the model built from the configuration.
+        """
+        if isinstance(config, (str, Path)):
+            config = Config().from_disk(config)
+        if isinstance(config, dict):
+            config = Config(data=config)
+        if empty_init:
+            with torch.device("meta"):
+                resolved = registry.resolve(config=config)
+        else:
+            resolved = registry.resolve(config=config)
+        if model_section not in resolved:
+            msg.fail(f"cannot find model section {model_section}")
+        else:
+            model = resolved[model_section]
+        if return_config:
+            return model, config
+        return model
+
+    def quantize_model(
+        self, model: nn.Module, quantizer: str | Quantizer = "int8"
+    ) -> nn.Module:
+        if isinstance(quantizer, str):
+            quantizer: Quantizer = registry.quantizers.get(quantizer)()
+        else:
+            quantizer: Quantizer = quantizer
+        model = quantizer.convert_for_runtime(model=model)
+        return model
+
     def load_checkpoint(
         self, model: nn.Module, states: Dict[str, torch.Tensor]
     ) -> nn.Module:
@@ -121,10 +166,12 @@ class HFModelBuilder:
         )
         return model.eval()
 
-    def load_model(self) -> nn.Module:
-        model = build_model(config=self.osc_config, empty_init=True)
+    def load(self, quantizer: str | Quantizer | None = None) -> nn.Module:
+        model = self.build_model(config=self.osc_config, empty_init=True)
         states = self.convert_checkpoint()
         model = self.load_checkpoint(model=model, states=states)
+        if quantizer is not None:
+            model = self.quantize_model(model=model, quantizer=quantizer)
         return model
 
     def load_tokenizer(self) -> Tokenizer:
@@ -154,3 +201,45 @@ class HFModelBuilder:
 
 
 to_fabric_precision = {"bfloat16": "bf16-true"}
+
+
+def get_default_supported_precision(training: bool = False) -> str:
+    """Return default precision that is supported by the hardware: either `bf16` or `16`.
+
+    Args:
+        training: `-mixed` or `-true` version of the precision to use
+
+    Returns:
+        default precision that is suitable for the task and is supported by the hardware
+    """
+    from lightning_fabric.accelerators import MPSAccelerator
+
+    if MPSAccelerator.is_available() or (
+        torch.cuda.is_available() and not torch.cuda.is_bf16_supported()
+    ):
+        return "16-mixed" if training else "16-true"
+    return "bf16-mixed" if training else "bf16-true"
+
+
+def get_supported_hf_models():
+    """获取支持的huggingface模型架构"""
+    hf_models = []
+    for model in registry.models.get_all():
+        hf_models.append(model)
+    return hf_models
+
+
+def load_hf_model(checkpoint_dir: str) -> HFModel:
+    config_path = Path(checkpoint_dir) / "config.json"
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    model_name = config["architectures"][0]
+    allowed_models = get_supported_hf_models()
+    if model_name not in allowed_models:
+        msg.fail(
+            title="Model {model_name} is not supported.",
+            text=f"Supported models are: {allowed_models}",
+            exits=1,
+        )
+    model: HFModel = registry.models.get(model_name)(checkpoint_dir)
+    return model

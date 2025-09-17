@@ -6,10 +6,9 @@ from ..layers.linear import WeightOnlyInt4Linear
 from ..utils import find_multiple
 from .base import Quantizer
 from ..config import registry
-from confection import Config
 
 
-@registry.quantizers.register("WeightOnlyInt4Quantizer")
+@registry.quantizers.register("int4")
 class WeightOnlyInt4Quantizer(Quantizer):
     def __init__(
         self,
@@ -119,18 +118,6 @@ class WeightOnlyInt4Quantizer(Quantizer):
             model, self.groupsize, self.inner_k_tiles, self.padding_allowed, use_cuda
         )
         return model
-
-    @property
-    def quantizer_config(self) -> Config:
-        config_str = f"""
-        [quantizer]
-        @quantizers = "WeightOnlyInt4Quantizer"
-        groupsize = {self.groupsize}
-        inner_k_tiles = {self.inner_k_tiles}
-        padding_allowed = {self.padding_allowed}
-        """
-        config = Config().from_str(config_str)
-        return config
 
 
 def _check_linear_int4_k(k, groupsize=1, inner_k_tiles=1):

@@ -1,9 +1,9 @@
 from __future__ import annotations
 import atexit
+from typing import Generator
 from time import perf_counter
 
 from tqdm.auto import tqdm
-import torch.multiprocessing as mp
 import torch
 
 from .sequence import Sequence
@@ -22,47 +22,35 @@ class LLM:
         max_num_seqs: int = 512,
         max_model_len: int = 4096,
         gpu_memory_utilization: float = 0.5,
-        tensor_parallel_size: int = 1,
         enforce_eager: bool = False,
         kvcache_block_size: int = 256,
         num_kvcache_blocks: int = -1,
     ):
-        self.ps = []
-        self.events = []
-        ctx = mp.get_context("spawn")
         self.config = LLMConfig(
             model=model,
             max_num_batched_tokens=max_num_batched_tokens,
             max_num_seqs=max_num_seqs,
             max_model_len=max_model_len,
             gpu_memory_utilization=gpu_memory_utilization,
-            tensor_parallel_size=tensor_parallel_size,
             enforce_eager=enforce_eager,
             kvcache_block_size=kvcache_block_size,
             num_kvcache_blocks=num_kvcache_blocks,
         )
-        for i in range(1, self.config.tensor_parallel_size):
-            event = ctx.Event()
-            process = ctx.Process(target=ModelRunner, args=(self.config, i, event))
-            process.start()
-            self.ps.append(process)
-            self.events.append(event)
-        self.model_runner = ModelRunner(self.config, 0, self.events)
+        self.model_runner = ModelRunner(self.config)
         self.tokenizer = Tokenizer(checkpoint_dir=self.config.model)
         self.config.eos = self.tokenizer.eos_id
         self.scheduler = Scheduler(config=self.config)
         atexit.register(self.exit)
 
     def exit(self):
-        self.model_runner.call("exit")
         del self.model_runner
-        for p in self.ps:
-            p.join()
 
     def add_request(self, prompt: str | list[int], sampling_params: SamplingParams):
         if isinstance(prompt, str):
-            prompt = self.tokenizer.encode(prompt).tolist()
-        seq = Sequence(prompt, sampling_params)
+            token_ids = self.tokenizer.encode(prompt).tolist()
+        else:
+            token_ids = prompt
+        seq = Sequence(token_ids=token_ids, sampling_params=sampling_params)
         self.scheduler.add(seq)
 
     def step(self):
@@ -123,3 +111,40 @@ class LLM:
         if use_tqdm:
             pbar.close()
         return outputs
+
+    def stream(
+        self, prompt: str, sampling_params: SamplingParams = None
+    ) -> Generator[str, None, None]:
+        assert isinstance(prompt, str)
+        if sampling_params is None:
+            sampling_params = SamplingParams()
+
+        def token_generator():
+            token_ids = self.tokenizer.encode(prompt).tolist()
+            seq = Sequence(token_ids=token_ids, sampling_params=sampling_params)
+            self.scheduler.add(seq)
+
+            # 跟踪序列的完成token数量，用于检测新生成的token
+            last_completion_tokens = 0
+
+            while not seq.is_finished:
+                # 执行一步推理
+                seqs, is_prefill = self.scheduler.schedule()
+                token_ids = self.model_runner.call("run", seqs, is_prefill)
+                self.scheduler.postprocess(seqs, token_ids)
+
+                # 检查我们的序列是否有新的token生成
+                if (
+                    seq in seqs
+                    and len(seq.completion_token_ids) > last_completion_tokens
+                ):
+                    # 获取新生成的token
+                    new_tokens = seq.completion_token_ids[last_completion_tokens:]
+                    last_completion_tokens = len(seq.completion_token_ids)
+
+                    # 将新token转换为torch.Tensor并yield
+                    for token_id in new_tokens:
+                        yield torch.tensor([token_id], dtype=torch.int)
+
+        # 使用tokenizer的decode_stream方法来处理token流
+        return self.tokenizer.decode_stream(token_generator())

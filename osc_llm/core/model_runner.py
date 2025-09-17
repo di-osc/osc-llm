@@ -1,35 +1,23 @@
-import pickle
 import torch
-import torch.distributed as dist
-from multiprocessing.synchronize import Event
-from multiprocessing.shared_memory import SharedMemory
 
 from .config import LLMConfig
 from .sequence import Sequence
 from ..architectures import TransformerDecoder
-from ..layers.sampler import Sampler
-from ..model_builders import get_hf_model_builder
+from ..layers import Sampler, AttentionContext
+from ..models import load_hf_model
 
 
 class ModelRunner:
-    def __init__(self, config: LLMConfig, rank: int, event: Event | list[Event]):
+    def __init__(self, config: LLMConfig):
         self.config = config
         hf_config = config.hf_config
         self.block_size = config.kvcache_block_size
         self.enforce_eager = config.enforce_eager
-        self.world_size = config.tensor_parallel_size
-        self.rank = rank
-        self.event = event
-
-        dist.init_process_group(
-            "nccl", "tcp://localhost:2333", world_size=self.world_size, rank=rank
-        )
-        torch.cuda.set_device(rank)
         default_dtype = torch.get_default_dtype()
         torch.set_default_dtype(hf_config.dtype)
         torch.set_default_device("cuda")
-        model_builder = get_hf_model_builder(config.model)
-        self.model: TransformerDecoder = model_builder.load_model()
+        hf_model = load_hf_model(config.model)
+        self.model: TransformerDecoder = hf_model.load()
         self.sampler = Sampler()
         self.warmup_model()
         self.allocate_kv_cache()
@@ -38,53 +26,7 @@ class ModelRunner:
         torch.set_default_device("cpu")
         torch.set_default_dtype(default_dtype)
 
-        if self.world_size > 1:
-            if rank == 0:
-                self.shm = SharedMemory(name="nanovllm", create=True, size=2**20)
-                dist.barrier()
-            else:
-                dist.barrier()
-                self.shm = SharedMemory(name="nanovllm")
-                self.loop()
-
-    def exit(self):
-        if self.world_size > 1:
-            self.shm.close()
-            dist.barrier()
-            if self.rank == 0:
-                self.shm.unlink()
-        if not self.enforce_eager:
-            del self.graphs, self.graph_pool
-        torch.cuda.synchronize()
-        dist.destroy_process_group()
-
-    def loop(self):
-        while True:
-            method_name, args = self.read_shm()
-            self.call(method_name, *args)
-            if method_name == "exit":
-                break
-
-    def read_shm(self):
-        assert self.world_size > 1 and self.rank
-        self.event.wait()
-        n = int.from_bytes(self.shm.buf[0:4], "little")
-        method_name, *args = pickle.loads(self.shm.buf[4 : n + 4])
-        self.event.clear()
-        return method_name, args
-
-    def write_shm(self, method_name, *args):
-        assert self.world_size > 1 and not self.rank
-        data = pickle.dumps([method_name, *args])
-        n = len(data)
-        self.shm.buf[0:4] = n.to_bytes(4, "little")
-        self.shm.buf[4 : n + 4] = data
-        for event in self.event:
-            event.set()
-
     def call(self, method_name, *args):
-        if self.world_size > 1 and self.rank == 0:
-            self.write_shm(method_name, *args)
         method = getattr(self, method_name, None)
         return method(*args)
 
@@ -109,14 +51,14 @@ class ModelRunner:
         used = total - free
         peak = torch.cuda.memory_stats()["allocated_bytes.all.peak"]
         current = torch.cuda.memory_stats()["allocated_bytes.all.current"]
-        num_kv_heads = hf_config.num_key_value_heads // self.world_size
+        num_kv_heads = hf_config.num_key_value_heads
         block_bytes = (
             2
             * hf_config.num_hidden_layers
             * self.block_size
             * num_kv_heads
             * hf_config.head_dim
-            * hf_config.torch_dtype.itemsize
+            * hf_config.dtype.itemsize
         )
         config.num_kvcache_blocks = (
             int(total * config.gpu_memory_utilization - used - peak + current)
@@ -180,17 +122,17 @@ class ModelRunner:
         slot_mapping = torch.tensor(
             slot_mapping, dtype=torch.int32, pin_memory=True
         ).cuda(non_blocking=True)
-        self.model.set_attn_ctx(
-            True,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            slot_mapping,
-            None,
-            block_tables,
+        attn_ctx = AttentionContext(
+            input_pos=positions,
+            is_prefill=True,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            slot_mapping=slot_mapping,
+            block_tables=block_tables,
         )
-        return input_ids, positions
+        return input_ids, attn_ctx
 
     def prepare_decode(self, seqs: list[Sequence]):
         input_ids = []
@@ -217,13 +159,14 @@ class ModelRunner:
             context_lens, dtype=torch.int32, pin_memory=True
         ).cuda(non_blocking=True)
         block_tables = self.prepare_block_tables(seqs)
-        self.model.set_attn_ctx(
-            False,
+        attn_ctx = AttentionContext(
+            input_pos=positions,
+            is_prefill=False,
             slot_mapping=slot_mapping,
             context_lens=context_lens,
             block_tables=block_tables,
         )
-        return input_ids, positions
+        return input_ids, attn_ctx
 
     def prepare_sample(self, seqs: list[Sequence]):
         temperatures = []
@@ -236,10 +179,12 @@ class ModelRunner:
 
     @torch.inference_mode()
     def run_model(
-        self, input_ids: torch.Tensor, input_pos: torch.Tensor, is_prefill: bool
+        self,
+        input_ids: torch.Tensor,
+        attn_ctx: AttentionContext,
     ):
-        if is_prefill or self.enforce_eager or input_ids.size(0) > 512:
-            return self.model.compute_logits(self.model(input_ids, input_pos))
+        if attn_ctx.is_prefill or self.enforce_eager or input_ids.size(0) > 512:
+            return self.model.compute_logits(self.model(input_ids, attn_ctx))
         else:
             bs = input_ids.size(0)
             graph = self.graphs[next(x for x in self.graph_bs if x >= bs)]
@@ -248,25 +193,23 @@ class ModelRunner:
                 if k != "outputs":
                     v.zero_()
             graph_vars["input_ids"][:bs] = input_ids
-            graph_vars["input_pos"][:bs] = input_pos
-            graph_vars["slot_mapping"][:bs] = self.model.attn_ctx.slot_mapping
-            graph_vars["context_lens"][:bs] = self.model.attn_ctx.context_lens
-            graph_vars["block_tables"][
-                :bs, : self.model.attn_ctx.block_tables.size(1)
-            ] = self.model.attn_ctx.block_tables
+            graph_vars["input_pos"][:bs] = attn_ctx.input_pos
+            graph_vars["slot_mapping"][:bs] = attn_ctx.slot_mapping
+            graph_vars["context_lens"][:bs] = attn_ctx.context_lens
+            graph_vars["block_tables"][:bs, : attn_ctx.block_tables.size(1)] = (
+                attn_ctx.block_tables
+            )
             graph.replay()
             return self.model.compute_logits(graph_vars["outputs"][:bs])
 
     def run(self, seqs: list[Sequence], is_prefill: bool) -> list[int]:
-        input_ids, input_pos = (
+        input_ids, attn_ctx = (
             self.prepare_prefill(seqs) if is_prefill else self.prepare_decode(seqs)
         )
-        temperatures = self.prepare_sample(seqs) if self.rank == 0 else None
-        logits = self.run_model(input_ids, input_pos, is_prefill)
-        token_ids = (
-            self.sampler(logits, temperatures).tolist() if self.rank == 0 else None
-        )
-        self.model.reset_attn_ctx()
+        temperatures = self.prepare_sample(seqs)
+        logits = self.run_model(input_ids, attn_ctx)
+        token_ids = self.sampler(logits, temperatures).tolist()
+        attn_ctx.reset_run_info()
         return token_ids
 
     @torch.inference_mode()
@@ -287,20 +230,21 @@ class ModelRunner:
 
         for bs in reversed(self.graph_bs):
             graph = torch.cuda.CUDAGraph()
-            self.model.set_attn_ctx(
-                False,
+            attn_ctx = AttentionContext(
+                input_pos=input_pos[:bs],
+                is_prefill=False,
                 slot_mapping=slot_mapping[:bs],
                 context_lens=context_lens[:bs],
                 block_tables=block_tables[:bs],
             )
-            outputs[:bs] = self.model(input_ids[:bs], input_pos[:bs])  # warmup
+            outputs[:bs] = self.model(input_ids[:bs], attn_ctx)  # warmup
             with torch.cuda.graph(graph, self.graph_pool):
-                outputs[:bs] = self.model(input_ids[:bs], input_pos[:bs])  # capture
+                outputs[:bs] = self.model(input_ids[:bs], attn_ctx)  # capture
             if self.graph_pool is None:
                 self.graph_pool = graph.pool()
             self.graphs[bs] = graph
             torch.cuda.synchronize()
-            self.model.reset_attn_ctx()
+            attn_ctx.reset_run_info()
 
         self.graph_vars = dict(
             input_ids=input_ids,

@@ -1,11 +1,11 @@
 from typing import Dict
 import torch
 from ..config import Config, registry
-from .base import HFModelBuilder
+from .base import HFModel
 
 
-@registry.model_builders.register("Qwen3ForCausalLM")
-class Qwen3Builder(HFModelBuilder):
+@registry.models.register("Qwen3ForCausalLM")
+class Qwen3ForCausalLM(HFModel):
     hf_architecture = "Qwen3ForCausalLM"
 
     @property
