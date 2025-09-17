@@ -8,15 +8,14 @@
 
 ## 简介
 
-osc-llm是一款轻量级别的模型推理框架, 专注于延迟和易用性。
+osc-llm是一款轻量级别的模型推理框架, 专注于多模态推理的延迟和吞吐量。
 
 ## 特点
 
-- ✅ 模型编译：torch.compile
+- ✅ 延迟低：torch.compile，cuda gragh
+- ✅ 吞吐量高：PageAttention
+- ✅ 支持多模态推理：llm，tts等
 - ✅ 模型量化：WeightOnlyInt8，WeightOnlyInt4
-- ✅ 推测性解码：（Speculative decoding）
-- ✅ 极少的依赖：核心仅pytorch
-- ❎ 更高效的kvcache管理：（PageAttention、TokenAttention）
 
 > 文档地址:
 - [notion](https://wangmengdi.notion.site/OSC-LLM-5a04563d88464530b3d32b31e27c557a)
@@ -28,29 +27,25 @@ osc-llm是一款轻量级别的模型推理框架, 专注于延迟和易用性�
 
 ## 快速开始
 
-命令行
-```bash
-# 聊天(使用编译功能加速推理速度,需要等待几分钟编译时间)
-llm chat --checkpoint_dir checkpoints/Qwen/Qwen3-0.6B --compile true
-# 部署openai api
-llm serve --checkpoint_dir checkpoints/Qwen/Qwen3-0.6B --compile true
-```
-使用LLM
 ```python
 from osc_llm import LLM
 
-llm = LLM(checkpoint_dir="checkpoints/Qwen/Qwen3-0.6B", compile=True)
-for token in llm.generate(prompt="介绍一下你自己"):
+llm = LLM(model="checkpoints/Qwen/Qwen3-0.6B")
+# 支持批量生成
+outputs = llm.generate(prompts=["介绍一下你自己"])
+# 支持流式生成
+for token in llm.stream(prompt="介绍一下你自己"):
     print(token)
 ```
 
 ## 模型支持
 
-以下huggingface中的模型(查看config.json)已经得到支持:
-- **LlamaForCausalLM**: llama2, llama3, chinese-alpaca2等。
+LLM模型支持:
 - **Qwen2ForCausalLM**: qwen1.5, qwen2等。
-- **Qwen2MoeForCausalLM**: qwen2-moe系列(目前无法完成编译,推理速度很慢)。
 - **Qwen3ForCausalLM**: qwen3等。
+
+TTS模型支持:
+- **SparkTTS**: todo
 
 
 ### 致敬
