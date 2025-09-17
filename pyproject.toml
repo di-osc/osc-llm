@@ -37,6 +37,10 @@ serve = [
 ]
 
 [[tool.uv.index]]
+name = "aliyun"
+url = "http://mirrors.aliyun.com/pypi/simple"
+
+[[tool.uv.index]]
 name = "tsinghua"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
