@@ -1,6 +1,6 @@
 [project]
 name = "osc-llm"
-version = "0.1.6.post1"
+version = "0.1.7"
 description = "轻量级大模型推理工具,专注于模型推理延迟,注重框架易用性和可拓展性。"
 readme = "README.md"
 authors = [
@@ -17,11 +17,12 @@ dependencies = [
     # 命令行
     "jsonargparse>=4.28.0",
     # config系统
-    "wasabi>=1.1.2",
     "confection>=0.1.4",
     "catalogue>=2.0.1",
     # 下载
     "modelscope>=1.22.3",
+    # 日志打印
+    "wasabi>=1.1.2",
     "loguru>=0.7.3",
     # 其他
     "xxhash>=3.5.0",
