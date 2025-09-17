@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from jsonargparse import CLI
+from wasabi import msg
 
 
 def download_model(
@@ -92,7 +93,6 @@ def bench(
         kvcache_block_size=kvcache_block_size,
         num_kvcache_blocks=num_kvcache_blocks,
     )
-
     prompt_token_ids = [
         [randint(0, 10000) for _ in range(randint(100, max_input_len))]
         for _ in range(num_seqs)
@@ -105,16 +105,29 @@ def bench(
         )
         for _ in range(num_seqs)
     ]
-
-    llm.generate(["Benchmark: "], SamplingParams())
-    t = time.time()
-    llm.generate(prompt_token_ids, sampling_params, use_tqdm=False)
-    t = time.time() - t
-    total_tokens = sum(sp.max_tokens for sp in sampling_params)
-    throughput = total_tokens / t
-    print(
-        f"Total: {total_tokens}tok, Time: {t:.2f}s, Throughput: {throughput:.2f}tok/s"
-    )
+    with msg.loading("Warming up model..."):
+        _ = llm.generate(["Benchmark: "], sampling_params, use_tqdm=False)
+    with msg.loading("Benchmark Throughput..."):
+        t = time.time()
+        llm.generate(prompt_token_ids, sampling_params, use_tqdm=False)
+        t = time.time() - t
+        total_tokens = sum(sp.max_tokens for sp in sampling_params)
+        throughput = total_tokens / t
+    with msg.loading("Benchmark First Token Latency..."):
+        latencys = []
+        for i in range(10):
+            latency = 0
+            start = time.time()
+            for _ in llm.stream(prompt="Benchmark: "):
+                if latency == 0:
+                    latency = time.time() - start
+                    break
+            latencys.append(latency)
+        latency = sum(latencys) / len(latencys)
+        latency = latency * 1000
+    header = ("model", "Throughput", "First token latency")
+    data = [(f"{llm.model_runner.hf_architecture}", f"{throughput:.2f}tok/s", f"{latency:.2f}ms")]
+    msg.table(data=data, header=header, divider=True, aligns=("c", "c", "c"), title="Benchmark Result")
 
 
 def serve_openai(

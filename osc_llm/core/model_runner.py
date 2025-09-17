@@ -1,11 +1,14 @@
 import torch
 
+from wasabi import Printer
+
 from .config import LLMConfig
 from .sequence import Sequence
 from ..architectures import TransformerDecoder
 from ..layers import Sampler, AttentionContext
 from ..models import load_hf_model
 
+msg = Printer()
 
 class ModelRunner:
     def __init__(self, config: LLMConfig):
@@ -16,13 +19,15 @@ class ModelRunner:
         default_dtype = torch.get_default_dtype()
         torch.set_default_dtype(hf_config.dtype)
         torch.set_default_device("cuda")
-        hf_model = load_hf_model(config.model)
-        self.model: TransformerDecoder = hf_model.load()
         self.sampler = Sampler()
-        self.warmup_model()
-        self.allocate_kv_cache()
+        with msg.loading("Loading model..."):
+            hf_model = load_hf_model(config.model)
+            self.hf_architecture = hf_model.hf_architecture
+            self.model: TransformerDecoder = hf_model.load()
+            self.allocate_kv_cache()
         if not self.enforce_eager:
-            self.capture_cudagraph()
+            with msg.loading("Capturing cudagraph..."):
+                self.capture_cudagraph()
         torch.set_default_device("cpu")
         torch.set_default_dtype(default_dtype)
 
@@ -64,7 +69,8 @@ class ModelRunner:
             int(total * config.gpu_memory_utilization - used - peak + current)
             // block_bytes
         )
-        assert config.num_kvcache_blocks > 0
+        if config.num_kvcache_blocks <= 0:
+            msg.fail("Not enough GPU memory to allocate KV cache", exits=0)
         self.model.set_kv_cache(config.num_kvcache_blocks, self.block_size)
 
     def prepare_block_tables(self, seqs: list[Sequence]):
