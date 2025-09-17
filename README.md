@@ -51,5 +51,6 @@ TTS模型支持:
 ### 致敬
 本项目参考了大量的开源项目，特别是以下项目：
 
+- [nanovllm](https://github.com/GeeeekExplorer/nano-vllm)
 - [litgpt](https://github.com/Lightning-AI/litgpt)
 - [gpt-fast](https://github.com/pytorch-labs/gpt-fast)
