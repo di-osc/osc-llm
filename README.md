@@ -23,6 +23,7 @@ osc-llm是一款轻量级别的模型推理框架, 专注于多模态推理的�
 ## 安装
 
 - 安装[最新版本pytorch](https://pytorch.org/get-started/locally/)
+- 安装[flash-attention](https://github.com/Dao-AILab/flash-attention)
 - 安装osc-llm: `pip install osc-llm`
 
 ## 快速开始
