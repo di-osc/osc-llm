@@ -6,6 +6,7 @@ from typing import Literal, Optional
 
 from jsonargparse import CLI
 from wasabi import msg
+import torch
 
 
 def download_model(
@@ -125,9 +126,11 @@ def bench(
             latencys.append(latency)
         latency = sum(latencys) / len(latencys)
         latency = latency * 1000
-    header = ("model", "Throughput", "First token latency")
-    data = [(f"{llm.model_runner.hf_architecture}", f"{throughput:.2f}tok/s", f"{latency:.2f}ms")]
-    msg.table(data=data, header=header, divider=True, aligns=("c", "c", "c"), title="Benchmark Result")
+    # 获取本机gpu型号
+    gpu_info = torch.cuda.get_device_properties(0)
+    header = ("model", "Throughput", "First token latency", "Device")
+    data = [(f"{llm.model_runner.hf_architecture}", f"{throughput:.2f}tok/s", f"{latency:.2f}ms", f"{gpu_info.name}")]
+    msg.table(data=data, header=header, divider=True, aligns=("c", "c", "c", "c"), title="Benchmark Result")
 
 
 def serve_openai(
