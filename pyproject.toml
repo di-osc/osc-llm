@@ -13,9 +13,13 @@ dependencies = [
     # tokenizers
     "tokenizers",
     "sentencepiece",
+    # 日志
+    "loguru",
     # 下载
     "modelscope",
     "huggingface_hub",
+    # others
+    "pydantic",
 ]
 
 [project.optional-dependencies]
