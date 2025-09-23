@@ -9,23 +9,13 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     # core
-    "torch>=2.8.0",
-    "safetensors>=0.4.3",
-    "sentencepiece>=0.2.0",
-    "tokenizers>=0.19.1",
-    "transformers>=4.48.2",
-    # 命令行
-    "jsonargparse>=4.28.0",
-    # config系统
-    "confection>=0.1.4",
-    "catalogue>=2.0.1",
+    "osc-transformers>=0.2.3",
+    # tokenizers
+    "tokenizers",
+    "sentencepiece",
     # 下载
-    "modelscope>=1.22.3",
-    # 日志打印
-    "wasabi>=1.1.2",
-    "loguru>=0.7.3",
-    # 其他
-    "xxhash>=3.5.0",
+    "modelscope",
+    "huggingface_hub",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +40,7 @@ url = "https://pypi.org/simple"
 default = true
 
 [project.scripts]
-llm = "osc_llm.__main__:run"
+llm = "osc_llm.__main__:run_cli"
 
 [build-system]
 requires = ["hatchling"]

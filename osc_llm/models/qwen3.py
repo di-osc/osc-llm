@@ -1,11 +1,13 @@
 from typing import Dict
 import torch
-from ..config import Config, registry
-from .base import HFModel
+from confection import Config
+
+from ..registry import Registry
+from .base import LLM
 
 
-@registry.models.register("Qwen3ForCausalLM")
-class Qwen3ForCausalLM(HFModel):
+@Registry.models.register("Qwen3ForCausalLM")
+class Qwen3ForCausalLM(LLM):
     hf_architecture = "Qwen3ForCausalLM"
 
     @property
@@ -14,7 +16,7 @@ class Qwen3ForCausalLM(HFModel):
         weight_map = {
             "model.embed_tokens.weight": "embedding.embed.weight",
             "model.norm.weight": "head_norm.weight",
-            "lm_head.weight": "head.weight",
+            "lm_head.weight": "head.predictor.weight",
         }
 
         for i in range(self.hf_config["num_hidden_layers"]):
@@ -58,17 +60,16 @@ class Qwen3ForCausalLM(HFModel):
     def osc_config(self) -> Config:
         tempelate = """
         [model]
-        @architectures = "TransformerDecoder"
-        n_layers = {num_hidden_layers}
-        max_length = {max_position_embeddings}
+        @architecture = "TransformerDecoder"
+        num_layers = {num_hidden_layers}
         prenorm = "True"
 
         [model.attention]
-        @layers = "PagedAttention"
-        n_in = {hidden_size}
-        n_heads = {num_attention_heads}
-        head_size = {head_dim}
-        n_query_groups = {num_key_value_heads}
+        @attention = "PagedAttention"
+        in_dim = {hidden_size}
+        num_heads = {num_attention_heads}
+        head_dim = {head_dim}
+        num_query_groups = {num_key_value_heads}
         rope_base = {rope_theta}
         q_bias = "False"
         k_bias = "False"
@@ -76,37 +77,37 @@ class Qwen3ForCausalLM(HFModel):
         o_bias = "False"
         
         [model.attention.q_norm]
-        @layers = "RMSNorm"
-        n_in = {head_dim}
+        @normalization = "RMSNorm"
+        in_dim = {head_dim}
         eps = {rms_norm_eps}
 
         [model.attention.k_norm]
-        @layers = "RMSNorm"
-        n_in = {head_dim}
+        @normalization = "RMSNorm"
+        in_dim = {head_dim}
         eps = {rms_norm_eps}
 
         [model.embedding]
-        @layers = "TokenEmbedding"
-        n_embeddings = {vocab_size}
-        embedding_size = {hidden_size}
+        @embedding = "VocabEmbedding"
+        num_embeddings = {vocab_size}
+        embedding_dim = {hidden_size}
 
         [model.feedforward]
-        @layers = "SwiGLU"
-        n_in = {hidden_size}
-        n_hidden = {intermediate_size}
+        @feedforward = "SwiGLU"
+        in_dim = {hidden_size}
+        hidden_dim = {intermediate_size}
         up_bias = "False"
         gate_bias = "False"
         down_bias = "False"
 
         [model.head]
-        @layers = "Linear"
-        n_in = {hidden_size}
-        n_out = {vocab_size}
+        @head = "LMHead"
+        in_dim = {hidden_size}
+        out_dim = {vocab_size}
         bias = "False"
 
         [model.norm]
-        @layers = "RMSNorm"
-        n_in = {hidden_size}
+        @normalization = "RMSNorm"
+        in_dim = {hidden_size}
         eps = {rms_norm_eps}
         """
         self.hf_config["max_length"] = self.hf_config.get(
@@ -120,6 +121,6 @@ class Qwen3ForCausalLM(HFModel):
     ) -> torch.nn.Module:
         if "tie_word_embeddings" in self.hf_config:
             if self.hf_config["tie_word_embeddings"]:
-                states["head.weight"] = states["embedding.embed.weight"]
+                states["head.predictor.weight"] = states["embedding.embed.weight"]
         model.load_state_dict(states, strict=True)
         return model.eval()

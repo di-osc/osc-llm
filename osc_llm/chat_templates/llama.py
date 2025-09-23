@@ -1,11 +1,11 @@
 from typing import List
 from .base import ChatTemplate, Message
-from ..config import registry
+from ..registry import Registry
 
 
-@registry.chat_templates.register("Llama3-8B-Chinese-Chat")
-@registry.chat_templates.register("llama-3-chinese-8b-instruct")
-@registry.chat_templates.register("Llama-3")
+@Registry.chat_templates.register("Llama3-8B-Chinese-Chat")
+@Registry.chat_templates.register("llama-3-chinese-8b-instruct")
+@Registry.chat_templates.register("Llama-3")
 class Llama3ChatTemplate(ChatTemplate):
     stop_texts: List[str] = ["<|end_of_text|>", "<|eot_id|>"]
     generate_prompt: str = "<|start_header_id|>assistant<|end_header_id|>\n\n"
@@ -28,7 +28,7 @@ def _apply_message_llama3(message: Message) -> str:
     return template.format(role=message.role, content=message.content)
 
 
-@registry.chat_templates.register("Llama-2")
+@Registry.chat_templates.register("Llama-2")
 class Llama2ChatTemplate(ChatTemplate):
     default_system: str = (
         "You are a helpful, respectful and honest assistant. Always answer as helpfully as"
@@ -65,6 +65,6 @@ def _apply_message_llama2(message: Message) -> str:
         return f" {message.content} "
 
 
-@registry.chat_templates.register("chinese-alpaca-2")
+@Registry.chat_templates.register("chinese-alpaca-2")
 class ChineseAlpaca2ChatTemplate(Llama2ChatTemplate):
     default_system: str = "You are a helpful assistant, 你是一个乐于助人的助手."

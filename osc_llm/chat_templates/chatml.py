@@ -1,11 +1,11 @@
 from .base import ChatTemplate, Message
-from ..config import registry
+from ..registry import Registry
 from typing import List
 
 
-@registry.chat_templates.register("Yi")
-@registry.chat_templates.register("ChatML")
-@registry.chat_templates.register("Qwen2ForCausalLM")
+@Registry.chat_templates.register("Yi")
+@Registry.chat_templates.register("ChatML")
+@Registry.chat_templates.register("Qwen2ForCausalLM")
 class ChatMLChatTemplate(ChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]
@@ -28,8 +28,8 @@ class ChatMLChatTemplate(ChatTemplate):
         return prompt
 
 
-@registry.chat_templates.register("Qwen3ForCausalLM")
-@registry.chat_templates.register("Qwen/Qwen3-0.6B")
+@Registry.chat_templates.register("Qwen3ForCausalLM")
+@Registry.chat_templates.register("Qwen/Qwen3-0.6B")
 class Qwen3ChatTemplate(ChatMLChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]

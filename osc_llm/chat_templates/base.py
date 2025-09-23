@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional, Dict
+
 from pydantic import BaseModel
 from pathlib import Path
-from ..config import registry, Config
+from confection import Config
+
+from ..registry import Registry
 
 
 class Property(BaseModel):
@@ -51,7 +54,7 @@ class ChatTemplate:
 
     @classmethod
     def get_config(cls) -> Config:
-        for k, v in registry.chat_templates.get_all().items():
+        for k, v in Registry.chat_templates.get_all().items():
             if cls == v:
                 name = k
         config_str = f"""
@@ -63,7 +66,7 @@ class ChatTemplate:
     @classmethod
     def from_name(cls, name: str) -> ChatTemplate | None:
         template_cls = None
-        for k, v in registry.chat_templates.get_all().items():
+        for k, v in Registry.chat_templates.get_all().items():
             if k in name:
                 template_cls = v
         return template_cls
@@ -73,9 +76,9 @@ class ChatTemplate:
         checkpoint_dir = Path(checkpoint_dir)
         # model_name : Qwen/Qwen3-0.6B
         model_name = checkpoint_dir.parent.name + "/" + checkpoint_dir.name
-        return registry.chat_templates.get(model_name)()
+        return Registry.chat_templates.get(model_name)()
 
     @classmethod
     def from_hf_architecture(cls, architecture: str) -> ChatTemplate | None:
         # architecture: Qwen3ForCausalLM
-        return registry.chat_templates.get(architecture)()
+        return Registry.chat_templates.get(architecture)()

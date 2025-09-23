@@ -1,18 +1,18 @@
 import json
 from pathlib import Path
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Tuple, List
 
 import torch
 import torch.nn as nn
-from wasabi import msg
+from loguru import logger
+from osc_transformers import TransformerDecoder, SamplingParams, Sequence
+from confection import Config
 
-from ..config import Config, registry
 from ..tokenizer import Tokenizer
-from ..chat_templates import ChatTemplate
-from ..quantizers import Quantizer
+from ..registry import Registry
 
 
-class HFModel:
+class LLM:
     """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
@@ -20,10 +20,40 @@ class HFModel:
     def __init__(self, checkpoint_dir: str):
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json", "r") as f:
-            self.hf_config = json.load(f)
+            self.hf_config: Dict = json.load(f)
         assert (
             self.hf_architecture in self.hf_config["architectures"]
         ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        self.tokenizer = Tokenizer(checkpoint_dir=self.checkpoint_dir)
+        self.model: TransformerDecoder = self.load()
+
+    def setup(self, gpu_memory_utilization: float = 0.5, device: str = "cuda"):
+        max_model_len = self.hf_config.get("max_length", 4096)
+        dtype = self.hf_config.get("torch_dtype", "bfloat16")
+        dtype = str_to_dtype(dtype)
+        self.model.setup(
+            max_model_len=max_model_len,
+            gpu_memory_utilization=gpu_memory_utilization,
+            eos=self.tokenizer.eos_id,
+            dtype=dtype,
+            device=device,
+        )
+
+    def batch(self, prompts: List[str], sampling_params: List[SamplingParams] = None):
+        if sampling_params is None:
+            sampling_params = [SamplingParams() for _ in prompts]
+        seqs = [
+            Sequence(
+                token_ids=self.tokenizer.encode(prompt).tolist(), sampling_params=sp
+            )
+            for prompt, sp in zip(prompts, sampling_params)
+        ]
+        seqs = self.model.batch(seqs=seqs)
+        outputs = [
+            {"text": self.tokenizer.decode(torch.tensor(seq.completion_token_ids))}
+            for seq in seqs
+        ]
+        return outputs
 
     @property
     def weight_map(self) -> Dict[str, str]:
@@ -79,7 +109,7 @@ class HFModel:
             )
             for key in weights:
                 if key not in wmap:
-                    msg.warn(f"{key} not in wmap")
+                    logger.warning(f"{key} not in wmap")
                     continue
                 sd[wmap[key]] = weights[key]
         return sd
@@ -107,7 +137,7 @@ class HFModel:
             with safe_open(file, framework="pt") as f:
                 for key in f.keys():
                     if key not in wmap:
-                        msg.warn(f"{key} not in wmap")
+                        logger.warning(f"{key} not in wmap")
                         continue
                     sd[wmap[key]] = f.get_tensor(key)
         return sd
@@ -130,31 +160,11 @@ class HFModel:
         Returns:
             torch.nn.Module: the model built from the configuration.
         """
-        if isinstance(config, (str, Path)):
-            config = Config().from_disk(config)
-        if isinstance(config, dict):
-            config = Config(data=config)
-        if empty_init:
-            with torch.device("meta"):
-                resolved = registry.resolve(config=config)
-        else:
-            resolved = registry.resolve(config=config)
-        if model_section not in resolved:
-            msg.fail(f"cannot find model section {model_section}")
-        else:
-            model = resolved[model_section]
+        model = TransformerDecoder.from_config(
+            config, empty_init=empty_init, model_section=model_section
+        )
         if return_config:
             return model, config
-        return model
-
-    def quantize_model(
-        self, model: nn.Module, quantizer: str | Quantizer = "int8"
-    ) -> nn.Module:
-        if isinstance(quantizer, str):
-            quantizer: Quantizer = registry.quantizers.get(quantizer)()
-        else:
-            quantizer: Quantizer = quantizer
-        model = quantizer.convert_for_runtime(model=model)
         return model
 
     def load_checkpoint(
@@ -166,80 +176,49 @@ class HFModel:
         )
         return model.eval()
 
-    def load(self, quantizer: str | Quantizer | None = None) -> nn.Module:
+    def load(self) -> nn.Module:
         model = self.build_model(config=self.osc_config, empty_init=True)
         states = self.convert_checkpoint()
         model = self.load_checkpoint(model=model, states=states)
-        if quantizer is not None:
-            model = self.quantize_model(model=model, quantizer=quantizer)
         return model
-
-    def load_tokenizer(self) -> Tokenizer:
-        chat_template = ChatTemplate.from_name(self.checkpoint_dir.stem)
-        if chat_template is None:
-            chat_template = ChatTemplate.from_name(self.hf_config["architectures"][0])
-        assert chat_template is not None, "No chat template found"
-        tokenizer = Tokenizer(self.checkpoint_dir, chat_template=chat_template)
-        return tokenizer
-
-    def get_chat_template_config(self) -> ChatTemplate:
-        for k, v in registry.chat_templates.get_all().items():
-            if k in self.hf_config["architectures"]:  # 简单通过名称匹配
-                config_str = f"""
-                [chat_template]
-                @chat_templates = {k}"""
-                config = Config().from_str(config_str)
-                return config
-        return None
 
     def get_default_presision(self) -> str:
         if "torch_dtype" in self.hf_config:
-            torch_precision = self.hf_config["torch_dtype"]
-            return to_fabric_precision.get(torch_precision)
-
-        return get_default_supported_precision()
-
-
-to_fabric_precision = {"bfloat16": "bf16-true"}
+            torch_precision = str_to_dtype(self.hf_config["torch_dtype"])
+            return torch_precision
+        return torch.get_default_dtype()
 
 
-def get_default_supported_precision(training: bool = False) -> str:
-    """Return default precision that is supported by the hardware: either `bf16` or `16`.
-
-    Args:
-        training: `-mixed` or `-true` version of the precision to use
-
-    Returns:
-        default precision that is suitable for the task and is supported by the hardware
-    """
-    from lightning_fabric.accelerators import MPSAccelerator
-
-    if MPSAccelerator.is_available() or (
-        torch.cuda.is_available() and not torch.cuda.is_bf16_supported()
-    ):
-        return "16-mixed" if training else "16-true"
-    return "bf16-mixed" if training else "bf16-true"
+def str_to_dtype(dtype: str) -> torch.dtype:
+    if dtype == "bfloat16":
+        return torch.bfloat16
+    elif dtype == "float16":
+        return torch.float16
+    elif dtype == "float32":
+        return torch.float32
+    elif dtype == "float64":
+        return torch.float64
+    else:
+        raise ValueError(f"Unsupported dtype: {dtype}")
 
 
 def get_supported_hf_models():
     """获取支持的huggingface模型架构"""
     hf_models = []
-    for model in registry.models.get_all():
+    for model in Registry.models.get_all():
         hf_models.append(model)
     return hf_models
 
 
-def load_hf_model(checkpoint_dir: str) -> HFModel:
+def load_llm(checkpoint_dir: str) -> LLM:
     config_path = Path(checkpoint_dir) / "config.json"
     with open(config_path, "r") as f:
         config = json.load(f)
     model_name = config["architectures"][0]
     allowed_models = get_supported_hf_models()
     if model_name not in allowed_models:
-        msg.fail(
-            title="Model {model_name} is not supported.",
-            text=f"Supported models are: {allowed_models}",
-            exits=1,
+        logger.error(
+            f"Model {model_name} is not supported. Supported models are: {allowed_models}"
         )
-    model: HFModel = registry.models.get(model_name)(checkpoint_dir)
+    model: LLM = Registry.models.get(model_name)(checkpoint_dir)
     return model
