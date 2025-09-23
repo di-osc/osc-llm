@@ -2,4 +2,4 @@
 from .models import Qwen3ForCausalLM, load_llm
 
 
-__all__ = ["Qwen3ForCausalLM"]
+__all__ = ["Qwen3ForCausalLM", "load_llm"]
