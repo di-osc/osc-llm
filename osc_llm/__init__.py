@@ -1,5 +1,5 @@
 # ruff: noqa
-from .models import Qwen3ForCausalLM, load_llm
+from .llm import LLM
 
 
-__all__ = ["Qwen3ForCausalLM", "load_llm"]
+__all__ = ["LLM"]

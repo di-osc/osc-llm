@@ -1,9 +1,9 @@
 from .qwen3 import Qwen3ForCausalLM
-from .base import LLM, load_llm
+from .base import CausalLM, load_causal_lm
 
 
 __all__ = [
-    "LLM",
+    "CausalLM",
     "Qwen3ForCausalLM",
-    "load_llm",
+    "load_causal_lm",
 ]

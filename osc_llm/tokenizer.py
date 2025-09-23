@@ -170,6 +170,8 @@ class Tokenizer:
             text = ""
             try:
                 for token in stream:
+                    if isinstance(token, int):
+                        token = torch.tensor(token)
                     buffer = buffer.to(device=token.device)
                     buffer = torch.cat((buffer, token.view(-1)))
                     t = self.decode(buffer)
@@ -187,6 +189,8 @@ class Tokenizer:
             decoded_so_far = ""
             try:
                 for token in stream:
+                    if isinstance(token, list):
+                        token = torch.tensor(token)
                     so_far = so_far.to(device=token.device)
                     so_far = torch.cat((so_far, token.view(-1)))
                     decoded_new = self.decode(so_far)

@@ -12,8 +12,8 @@ from ..tokenizer import Tokenizer
 from ..registry import Registry
 
 
-class LLM:
-    """huggingface模型转换工具基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
+class CausalLM:
+    """huggingface因果语言模型基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
 
     hf_architecture: str
 
@@ -54,6 +54,15 @@ class LLM:
             for seq in seqs
         ]
         return outputs
+
+    def stream(self, prompt: str, sampling_params: SamplingParams = None):
+        if sampling_params is None:
+            sampling_params = SamplingParams()
+        seq = Sequence(
+            token_ids=self.tokenizer.encode(prompt).tolist(),
+            sampling_params=sampling_params,
+        )
+        return self.tokenizer.decode_stream(self.model.stream(seq=seq))
 
     @property
     def weight_map(self) -> Dict[str, str]:
@@ -210,7 +219,7 @@ def get_supported_hf_models():
     return hf_models
 
 
-def load_llm(checkpoint_dir: str) -> LLM:
+def load_causal_lm(checkpoint_dir: str) -> CausalLM:
     config_path = Path(checkpoint_dir) / "config.json"
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -220,5 +229,5 @@ def load_llm(checkpoint_dir: str) -> LLM:
         logger.error(
             f"Model {model_name} is not supported. Supported models are: {allowed_models}"
         )
-    model: LLM = Registry.models.get(model_name)(checkpoint_dir)
+    model: CausalLM = Registry.models.get(model_name)(checkpoint_dir)
     return model

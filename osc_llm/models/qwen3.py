@@ -3,11 +3,11 @@ import torch
 from confection import Config
 
 from ..registry import Registry
-from .base import LLM
+from .base import CausalLM
 
 
 @Registry.models.register("Qwen3ForCausalLM")
-class Qwen3ForCausalLM(LLM):
+class Qwen3ForCausalLM(CausalLM):
     hf_architecture = "Qwen3ForCausalLM"
 
     @property
