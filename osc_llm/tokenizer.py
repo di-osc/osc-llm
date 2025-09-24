@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
 from typing import Optional, Union, Generator, List
+
 import torch
-from .chat_templates import ChatTemplate, Message
 from sentencepiece import SentencePieceProcessor
 from tokenizers import Tokenizer as HFTokenizer
+
+from .chat_templates import ChatTemplate, Message
 
 
 class Tokenizer:
@@ -115,7 +117,7 @@ class Tokenizer:
         bos: Optional[bool] = None,
         eos: bool = False,
         max_length: int = -1,
-        use_chat_template: bool = True,
+        use_chat_template: bool = False,
     ) -> torch.Tensor:
         if use_chat_template:
             string = self.chat_template.apply_user(
