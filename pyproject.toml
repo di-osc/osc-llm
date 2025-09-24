@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     # core
-    "osc-transformers>=0.2.3",
+    "osc-transformers>=0.2.5",
     # tokenizers
     "tokenizers",
     "sentencepiece",
