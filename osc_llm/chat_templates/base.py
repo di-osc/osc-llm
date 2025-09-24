@@ -28,8 +28,8 @@ class Tool(BaseModel):
 
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "observation"]
+    thinking_content: Optional[str] = None
     content: str
-    thinking_content: str = ""
     metadata: str = ""
     tools: List[Tool] = []
 
