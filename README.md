@@ -2,10 +2,22 @@
 
 轻量级大模型推理工具，专注于模型推理延迟。
 
+## 特性
+
+### 🚀 高性能推理
+- **CUDA Graph**: 编译优化，减少推理延迟
+- **PagedAttention**: 高效的KV缓存管理，支持长序列推理
+- **连续批处理**: 支持动态批量推理优化
+
+### 🛠️ 易用性
+- **轻量级设计**: 专注于推理性能，减少依赖
+- **简单API**: 简洁的Python接口
+- **模型管理**: 内置下载和管理工具
+
 ## 安装
 
-- 安装(最新版本pytorch)[https://pytorch.org/]
-- 安装(flash-attn)[https://github.com/Dao-AILab/flash-attention]：建议下载官方构建好的whl包，避免编译问题
+- 安装[最新版本pytorch](https://pytorch.org/)
+- 安装[flash-attn](https://github.com/Dao-AILab/flash-attention): 建议下载官方构建好的whl包，避免编译问题
 - 安装osc-llm
 ```bash
 pip install osc-llm --upgrade
