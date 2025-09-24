@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Union, Tuple, List
+from typing import Dict, Union, Tuple, List, Generator
 
 import torch
 import torch.nn as nn
@@ -8,8 +8,9 @@ from loguru import logger
 from osc_transformers import TransformerDecoder, SamplingParams, Sequence
 from confection import Config
 
-from ..tokenizer import Tokenizer
 from ..registry import Registry
+from ..tokenizer import Tokenizer
+from ..chat_templates import Message
 
 
 class CausalLM:
@@ -37,32 +38,74 @@ class CausalLM:
             eos=self.tokenizer.eos_id,
             dtype=dtype,
             device=device,
+            model_name=self.hf_architecture,
         )
 
-    def batch(self, prompts: List[str], sampling_params: List[SamplingParams] = None):
-        if sampling_params is None:
-            sampling_params = [SamplingParams() for _ in prompts]
-        seqs = [
-            Sequence(
-                token_ids=self.tokenizer.encode(prompt).tolist(), sampling_params=sp
+    def chat(
+        self,
+        messages: List[Message],
+        max_new_tokens: int = 2048,
+        temperature: float = 1.0,
+        stream: bool = False,
+        enable_thinking: bool = False,
+    ):
+        token_ids = self.tokenizer.encode_messages(
+            messages=messages, enable_thinking=enable_thinking, add_generate_prompt=True
+        ).tolist()
+        if stream:
+            return self.tokenizer.decode_stream(
+                self.stream(
+                    token_ids=token_ids,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                )
             )
-            for prompt, sp in zip(prompts, sampling_params)
-        ]
-        seqs = self.model.batch(seqs=seqs)
-        outputs = [
-            {"text": self.tokenizer.decode(torch.tensor(seq.completion_token_ids))}
-            for seq in seqs
-        ]
-        return outputs
+        else:
+            content = self.tokenizer.decode(
+                self.generate(
+                    token_ids=token_ids,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                )
+            )
+            if enable_thinking:
+                thinking_content, content = (
+                    self.tokenizer.chat_template.split_thinking_content(content)
+                )
+                messages.append(
+                    Message(
+                        role="assistant",
+                        content=content,
+                        thinking_content=thinking_content,
+                    )
+                )
+            else:
+                messages.append(Message(role="assistant", content=content))
+            return messages
 
-    def stream(self, prompt: str, sampling_params: SamplingParams = None):
-        if sampling_params is None:
-            sampling_params = SamplingParams()
+    def generate(
+        self, token_ids: List[int], max_new_tokens: int = 2048, temperature: float = 1.0
+    ):
         seq = Sequence(
-            token_ids=self.tokenizer.encode(prompt).tolist(),
-            sampling_params=sampling_params,
+            token_ids=token_ids,
+            sampling_params=SamplingParams(
+                max_generate_tokens=max_new_tokens, temperature=temperature
+            ),
         )
-        return self.tokenizer.decode_stream(self.model.stream(seq=seq))
+        seq = self.model.batch(seqs=[seq])[0]
+        return seq.completion_token_ids
+
+    def stream(
+        self, token_ids: List[int], max_new_tokens: int = 2048, temperature: float = 1.0
+    ) -> Generator[int, None, None]:
+        seq = Sequence(
+            token_ids=token_ids,
+            sampling_params=SamplingParams(
+                max_generate_tokens=max_new_tokens, temperature=temperature
+            ),
+        )
+        for token_id in self.model.stream(seq=seq):
+            yield token_id
 
     @property
     def weight_map(self) -> Dict[str, str]:
