@@ -1,5 +1,6 @@
 from typing import Optional
 import statistics
+import uuid
 
 import torch
 from wasabi import msg
@@ -21,6 +22,10 @@ def get_chat_template(name) -> Optional[Config]:
         if k in name:
             return v
     return None
+
+
+def random_uuid() -> str:
+    return str(uuid.uuid4())
 
 
 @torch.no_grad()

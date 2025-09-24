@@ -150,14 +150,20 @@ class Tokenizer:
         bos: Optional[bool] = None,
         eos: bool = False,
         max_length: int = -1,
+        enable_thinking: bool = False,
     ) -> torch.Tensor:
         assert self.chat_template, "Chat template is required for encoding messages"
         string = self.chat_template.apply_messages(
-            messages, add_generate_prompt=add_generate_prompt
+            messages,
+            add_generate_prompt=add_generate_prompt,
+            enable_thinking=enable_thinking,
         )
-        return self.encode(string, device, bos, eos, max_length)
+        return self.encode(
+            string, device, bos, eos, max_length, use_chat_template=False
+        )
 
-    def decode(self, tensor: torch.Tensor) -> str:
+    def decode(self, tensor: torch.Tensor | List[int]) -> str:
+        tensor = tensor if isinstance(tensor, torch.Tensor) else torch.tensor(tensor)
         tokens = [tensor.item()] if tensor.ndim == 0 else tensor.tolist()
         return self.processor.decode(tokens)
 

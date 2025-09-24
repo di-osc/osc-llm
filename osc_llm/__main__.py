@@ -44,25 +44,8 @@ def download_model(
         )
 
 
-def serve_openai(
-    model_path: str,
-    port: int = 8000,
-):
-    """
-    Serve the osc model as an OpenAI API.
-
-    Args:
-        model_path: Path to the osc model directory containing the checkpoint.
-        port: The port to serve the OpenAI API.
-    """
-    from .servers.openai import main as openai_main
-
-    openai_main(model_path, port)
-
-
 commands = {
     "download": download_model,
-    "serve": serve_openai,
 }
 
 
