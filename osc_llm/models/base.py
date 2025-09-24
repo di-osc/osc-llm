@@ -44,11 +44,12 @@ class CausalLM:
     def chat(
         self,
         messages: List[Message],
-        max_new_tokens: int = 2048,
-        temperature: float = 1.0,
+        sampling_params: SamplingParams | None = None,
         stream: bool = False,
         enable_thinking: bool = False,
     ):
+        if sampling_params is None:
+            sampling_params = SamplingParams()
         token_ids = self.tokenizer.encode_messages(
             messages=messages, enable_thinking=enable_thinking, add_generate_prompt=True
         ).tolist()
@@ -56,16 +57,14 @@ class CausalLM:
             return self.tokenizer.decode_stream(
                 self.stream(
                     token_ids=token_ids,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
+                    sampling_params=sampling_params,
                 )
             )
         else:
             content = self.tokenizer.decode(
                 self.generate(
                     token_ids=token_ids,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
+                    sampling_params=sampling_params,
                 )
             )
             if enable_thinking:
@@ -83,29 +82,59 @@ class CausalLM:
                 messages.append(Message(role="assistant", content=content))
             return messages
 
-    def generate(
-        self, token_ids: List[int], max_new_tokens: int = 2048, temperature: float = 1.0
-    ):
+    def generate(self, token_ids: List[int], sampling_params: SamplingParams):
         seq = Sequence(
             token_ids=token_ids,
-            sampling_params=SamplingParams(
-                max_generate_tokens=max_new_tokens, temperature=temperature
-            ),
+            sampling_params=sampling_params,
         )
         seq = self.model.batch(seqs=[seq])[0]
         return seq.completion_token_ids
 
     def stream(
-        self, token_ids: List[int], max_new_tokens: int = 2048, temperature: float = 1.0
+        self, token_ids: List[int], sampling_params: SamplingParams
     ) -> Generator[int, None, None]:
         seq = Sequence(
             token_ids=token_ids,
-            sampling_params=SamplingParams(
-                max_generate_tokens=max_new_tokens, temperature=temperature
-            ),
+            sampling_params=sampling_params,
         )
         for token_id in self.model.stream(seq=seq):
             yield token_id
+
+    def batch(
+        self,
+        batch_messages: List[List[Message]],
+        sampling_params: List[SamplingParams] | None = None,
+        enable_thinking: bool = False,
+    ) -> List[List[Message]]:
+        batch_token_ids = [
+            self.tokenizer.encode_messages(
+                messages, enable_thinking=enable_thinking, add_generate_prompt=True
+            )
+            for messages in batch_messages
+        ]
+        if sampling_params is None:
+            sampling_params = [SamplingParams() for _ in batch_messages]
+        seqs = [
+            Sequence(token_ids=token_ids, sampling_params=sampling_params)
+            for token_ids, sampling_params in zip(batch_token_ids, sampling_params)
+        ]
+        seqs = self.model.batch(seqs=seqs)
+        for messages, seq in zip(batch_messages, seqs):
+            content = self.tokenizer.decode(seq.completion_token_ids)
+            if enable_thinking:
+                thinking_content, content = (
+                    self.tokenizer.chat_template.split_thinking_content(content)
+                )
+                messages.append(
+                    Message(
+                        role="assistant",
+                        content=content,
+                        thinking_content=thinking_content,
+                    )
+                )
+            else:
+                messages.append(Message(role="assistant", content=content))
+        return batch_messages
 
     @property
     def weight_map(self) -> Dict[str, str]:
