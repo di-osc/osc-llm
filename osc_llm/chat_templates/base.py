@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional, Dict
+from typing import List, Literal, Optional, Dict, Tuple
 
 from pydantic import BaseModel
 from pathlib import Path
@@ -29,6 +29,7 @@ class Tool(BaseModel):
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "observation"]
     content: str
+    thinking_content: str = ""
     metadata: str = ""
     tools: List[Tool] = []
 
@@ -40,17 +41,39 @@ class ChatTemplate:
 
     @classmethod
     def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = True
+        cls,
+        messages: List[Message],
+        add_generate_prompt: bool = True,
+        enable_thinking: bool = False,
     ) -> str:
         raise NotImplementedError
 
     @classmethod
-    def apply_user(cls, user: str, add_generate_prompt: bool = True) -> str:
+    def split_thinking_content(self, content: str) -> Tuple[str, str]:
+        import re
+
+        pattern = r"<think>(.*?)</think>"
+        match = re.search(pattern, content, re.DOTALL)
+        if match:
+            thinking_content = match.group(1)
+            thinking_content = f"<think>{thinking_content}</think>"
+            content = content.replace(thinking_content, "")
+            return thinking_content.strip().strip("\n"), content.strip().strip("\n")
+        return "", content
+
+    @classmethod
+    def apply_user(
+        cls, user: str, add_generate_prompt: bool = True, enable_thinking: bool = False
+    ) -> str:
         messages = []
         if cls.default_system:
             messages.append(Message(role="system", content=cls.default_system))
         messages.append(Message(role="user", content=user))
-        return cls.apply_messages(messages, add_generate_prompt=add_generate_prompt)
+        return cls.apply_messages(
+            messages,
+            add_generate_prompt=add_generate_prompt,
+            enable_thinking=enable_thinking,
+        )
 
     @classmethod
     def get_config(cls) -> Config:

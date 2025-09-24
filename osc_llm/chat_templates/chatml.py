@@ -13,7 +13,10 @@ class ChatMLChatTemplate(ChatTemplate):
 
     @classmethod
     def apply_messages(
-        cls, messages: List[Message], add_generate_prompt: bool = True
+        cls,
+        messages: List[Message],
+        add_generate_prompt: bool = True,
+        enable_thinking: bool = False,
     ) -> str:
         prompt = ""
         for message in messages:
@@ -34,3 +37,26 @@ class Qwen3ChatTemplate(ChatMLChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]
     generate_prompt: str = "<|im_start|>assistant\n"
+
+    @classmethod
+    def apply_messages(
+        cls,
+        messages: List[Message],
+        add_generate_prompt: bool = True,
+        enable_thinking: bool = False,
+    ) -> str:
+        prompt = ""
+        if messages and messages[0].role != "system":
+            prompt += f"<|im_start|>system\n{cls.default_system}<|im_end|>\n"
+        for message in messages:
+            if message.role == "user":
+                prompt += f"<|im_start|>user\n{message.content}<|im_end|>\n"
+            elif message.role == "assistant":
+                prompt += f"<|im_start|>assistant\n{message.content}<|im_end|>\n"
+            elif message.role == "system":
+                prompt += f"<|im_start|>system\n{message.content}<|im_end|>\n"
+        if add_generate_prompt:
+            prompt += cls.generate_prompt
+        if not enable_thinking:
+            prompt += "<think>\n\n</think>\n\n"
+        return prompt
