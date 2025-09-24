@@ -34,29 +34,34 @@ llm download Qwen/Qwen3-0.6B
 ### 基本使用
 
 ```python
-from osc_llm import Qwen3ForCausalLM, Message
+from osc_llm import Qwen3ForCausalLM
 
 # 初始化模型
 llm = Qwen3ForCausalLM("checkpoints/Qwen/Qwen3-0.6B")
 llm.setup(device="cuda:0", gpu_memory_utilization=0.9)
 
 # 对话
-messages = [Message(role="user", content="介绍一下北京")]
-messages = llm.chat(messages=messages, enable_thinking=True)
-print(messages)
+chat_template = llm.get_chat_template()
+chat_template.add_user_message("介绍一下北京")
+prompt = chat_template.apply(enable_thinking=True)
+assistant_content = llm.generate(prompts=[prompt])[0]
+chat_template.add_assistant_message(assistant_content)
+print(chat_template.messages)
 ```
 
 ### 流式生成
 
 ```python
-messages = [Message(role="user", content="介绍一下北京")]
-for token in llm.chat(messages=messages, stream=True):
+chat_template = llm.get_chat_template()
+chat_template.add_user_message("介绍一下北京")
+prompt = chat_template.apply(enable_thinking=True)
+for token in llm.stream(prompt=prompt):
     print(token, end="", flush=True)
 ```
 
 ## 支持的模型
 
-- Qwen3ForCausalLM (支持思考模式)
+- Qwen3ForCausalLM
 
 ## CLI 工具
 
