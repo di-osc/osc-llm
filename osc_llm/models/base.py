@@ -10,7 +10,7 @@ from confection import Config
 
 from ..registry import Registry
 from ..tokenizer import Tokenizer
-from ..chat_templates import Message
+from ..chat_templates import ChatTemplate
 
 
 class CausalLM:
@@ -41,100 +41,38 @@ class CausalLM:
             model_name=self.hf_architecture,
         )
 
-    def chat(
-        self,
-        messages: List[Message],
-        sampling_params: SamplingParams | None = None,
-        stream: bool = False,
-        enable_thinking: bool = False,
-    ):
+    def stream(
+        self, prompt: str, sampling_params: SamplingParams | None = None
+    ) -> Generator[str, None, None]:
+        token_ids = self.tokenizer.encode(string=prompt).tolist()
         if sampling_params is None:
             sampling_params = SamplingParams()
-        token_ids = self.tokenizer.encode_messages(
-            messages=messages, enable_thinking=enable_thinking, add_generate_prompt=True
-        ).tolist()
-        if stream:
-            return self.tokenizer.decode_stream(
-                self.stream(
-                    token_ids=token_ids,
-                    sampling_params=sampling_params,
-                )
-            )
-        else:
-            content = self.tokenizer.decode(
-                self.generate(
-                    token_ids=token_ids,
-                    sampling_params=sampling_params,
-                )
-            )
-            if enable_thinking:
-                thinking_content, content = (
-                    self.tokenizer.chat_template.split_thinking_content(content)
-                )
-                messages.append(
-                    Message(
-                        role="assistant",
-                        content=content,
-                        thinking_content=thinking_content,
-                    )
-                )
-            else:
-                messages.append(Message(role="assistant", content=content))
-            return messages
-
-    def generate(self, token_ids: List[int], sampling_params: SamplingParams):
         seq = Sequence(
             token_ids=token_ids,
             sampling_params=sampling_params,
         )
-        seq = self.model.batch(seqs=[seq])[0]
-        return seq.completion_token_ids
+        return self.tokenizer.decode_stream(self.model.stream(seq=seq))
 
-    def stream(
-        self, token_ids: List[int], sampling_params: SamplingParams
-    ) -> Generator[int, None, None]:
-        seq = Sequence(
-            token_ids=token_ids,
-            sampling_params=sampling_params,
-        )
-        for token_id in self.model.stream(seq=seq):
-            yield token_id
-
-    def batch(
+    def generate(
         self,
-        batch_messages: List[List[Message]],
+        prompts: List[str],
         sampling_params: List[SamplingParams] | None = None,
-        enable_thinking: bool = False,
-    ) -> List[List[Message]]:
+    ) -> List[str]:
         batch_token_ids = [
-            self.tokenizer.encode_messages(
-                messages, enable_thinking=enable_thinking, add_generate_prompt=True
-            )
-            for messages in batch_messages
+            self.tokenizer.encode(string=prompt).tolist() for prompt in prompts
         ]
         if sampling_params is None:
-            sampling_params = [SamplingParams() for _ in batch_messages]
+            sampling_params = [SamplingParams() for _ in prompts]
         seqs = [
             Sequence(token_ids=token_ids, sampling_params=sampling_params)
             for token_ids, sampling_params in zip(batch_token_ids, sampling_params)
         ]
         seqs = self.model.batch(seqs=seqs)
-        for messages, seq in zip(batch_messages, seqs):
+        results = []
+        for seq in seqs:
             content = self.tokenizer.decode(seq.completion_token_ids)
-            if enable_thinking:
-                thinking_content, content = (
-                    self.tokenizer.chat_template.split_thinking_content(content)
-                )
-                messages.append(
-                    Message(
-                        role="assistant",
-                        content=content,
-                        thinking_content=thinking_content,
-                    )
-                )
-            else:
-                messages.append(Message(role="assistant", content=content))
-        return batch_messages
+            results.append(content)
+        return results
 
     @property
     def weight_map(self) -> Dict[str, str]:
@@ -145,6 +83,9 @@ class CausalLM:
     def osc_config(self) -> Config:
         """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
+
+    def get_chat_template(self) -> ChatTemplate:
+        return ChatTemplate.from_hf_architecture(self.hf_architecture)
 
     def convert_checkpoint(self) -> Dict[str, torch.Tensor]:
         """将huggingface模型转换为osc格式模型
