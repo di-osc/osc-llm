@@ -55,9 +55,11 @@ class CausalLM:
 
     def generate(
         self,
-        prompts: List[str],
+        prompts: List[str] | str,
         sampling_params: List[SamplingParams] | None = None,
     ) -> List[str]:
+        if isinstance(prompts, str):
+            prompts = [prompts]
         batch_token_ids = [
             self.tokenizer.encode(string=prompt).tolist() for prompt in prompts
         ]
