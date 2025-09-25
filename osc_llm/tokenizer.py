@@ -1,20 +1,20 @@
 import json
 from pathlib import Path
-from typing import Optional, Union, Generator, List, Dict
+from typing import Optional, Union, Generator, List, Dict, Tuple
+import re
 
 import torch
 from sentencepiece import SentencePieceProcessor
 from tokenizers import Tokenizer as HFTokenizer
 from jinja2 import Template
 
-from .chat_templates import ChatTemplate, Message
+from .chat_templates import Message
 
 
 class Tokenizer:
     def __init__(
         self,
         checkpoint_dir: Union[Path, str],
-        chat_template: ChatTemplate | str | None = None,
     ) -> None:
         checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir = checkpoint_dir
@@ -25,9 +25,8 @@ class Tokenizer:
         tokenizer_config_path = checkpoint_dir / "tokenizer_config.json"
         with open(tokenizer_config_path) as fp:
             config = json.load(fp)
-        self.chat_template = config.get("chat_template", None)
-        if self.chat_template:
-            self.chat_template = Template(self.chat_template)
+        chat_template_str = config.get("chat_template", None)
+        self.chat_template = Template(chat_template_str)
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
@@ -118,12 +117,7 @@ class Tokenizer:
         bos: Optional[bool] = None,
         eos: bool = False,
         max_length: int = -1,
-        use_chat_template: bool = False,
     ) -> torch.Tensor:
-        if use_chat_template:
-            string = self.chat_template.apply_user(
-                user=string, add_generation_prompt=True
-            )
         if self.backend == "huggingface":
             self.processor: HFTokenizer
             tokens = self.processor.encode(string, add_special_tokens=False).ids
@@ -258,3 +252,13 @@ class Tokenizer:
     def has_special_chars(self, text: str) -> bool:
         """使用sentencepiece时，检查文本中是否包含特殊字符�.这种情况通常是由于一个中文字符被分割为几个token,而解码时没有合并回去导致的."""
         return "�" in text
+
+    def split_thinking_content(self, content: str) -> Tuple[str, str]:
+        pattern = r"<think>(.*?)</think>"
+        match = re.search(pattern, content, re.DOTALL)
+        if match:
+            thinking_content = match.group(1)
+            thinking_content = f"<think>{thinking_content}</think>"
+            content = content.replace(thinking_content, "")
+            return thinking_content.strip().strip("\n"), content.strip().strip("\n")
+        return "", content

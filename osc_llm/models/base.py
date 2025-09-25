@@ -9,7 +9,6 @@ from osc_transformers import TransformerDecoder, SamplingParams, Sequence
 from confection import Config
 
 from ..registry import Registry
-from ..tokenizer import Tokenizer
 from ..chat_templates import ChatTemplate
 
 
@@ -22,59 +21,54 @@ class CausalLM:
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json", "r") as f:
             self.hf_config: Dict = json.load(f)
-        assert self.hf_architecture in self.hf_config["architectures"], (
-            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
-        )
-        self.tokenizer = Tokenizer(checkpoint_dir=self.checkpoint_dir)
+        assert (
+            self.hf_architecture in self.hf_config["architectures"]
+        ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
         self.model: TransformerDecoder = self.load()
 
-    def setup(self, gpu_memory_utilization: float = 0.5, device: str = "cuda"):
+    def setup(
+        self, eos_id: int, gpu_memory_utilization: float = 0.5, device: str = "cuda"
+    ):
         max_model_len = self.hf_config.get("max_length", 4096)
         dtype = self.hf_config.get("torch_dtype", "bfloat16")
         dtype = str_to_dtype(dtype)
         self.model.setup(
             max_model_len=max_model_len,
             gpu_memory_utilization=gpu_memory_utilization,
-            eos=self.tokenizer.eos_id,
+            eos=eos_id,
             dtype=dtype,
             device=device,
             model_name=self.hf_architecture,
         )
 
     def stream(
-        self, prompt: str, sampling_params: SamplingParams | None = None
+        self, token_ids: List[int], sampling_params: SamplingParams | None = None
     ) -> Generator[str, None, None]:
-        token_ids = self.tokenizer.encode(string=prompt).tolist()
         if sampling_params is None:
             sampling_params = SamplingParams()
         seq = Sequence(
             token_ids=token_ids,
             sampling_params=sampling_params,
         )
-        return self.tokenizer.decode_stream(self.model.stream(seq=seq))
+        return self.model.stream(seq=seq)
 
-    def generate(
+    def batch(
         self,
-        prompts: List[str] | str,
+        batch_token_ids: List[List[int]],
         sampling_params: List[SamplingParams] | None = None,
-    ) -> List[str]:
-        if isinstance(prompts, str):
-            prompts = [prompts]
-        batch_token_ids = [
-            self.tokenizer.encode(string=prompt).tolist() for prompt in prompts
-        ]
+    ) -> List[List[int]]:
         if sampling_params is None:
-            sampling_params = [SamplingParams() for _ in prompts]
+            sampling_params = [SamplingParams() for _ in batch_token_ids]
         seqs = [
             Sequence(token_ids=token_ids, sampling_params=sampling_params)
             for token_ids, sampling_params in zip(batch_token_ids, sampling_params)
         ]
         seqs = self.model.batch(seqs=seqs)
-        results = []
+        batch_completion_token_ids = []
         for seq in seqs:
-            content = self.tokenizer.decode(seq.completion_token_ids)
-            results.append(content)
-        return results
+            completion_token_ids = seq.completion_token_ids
+            batch_completion_token_ids.append(completion_token_ids)
+        return batch_completion_token_ids
 
     @property
     def weight_map(self) -> Dict[str, str]:
