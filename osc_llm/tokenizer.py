@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
-from typing import Optional, Union, Generator, List
+from typing import Optional, Union, Generator, List, Dict
 
 import torch
 from sentencepiece import SentencePieceProcessor
 from tokenizers import Tokenizer as HFTokenizer
+from jinja2 import Template
 
 from .chat_templates import ChatTemplate, Message
 
@@ -21,15 +22,15 @@ class Tokenizer:
             raise NotADirectoryError(
                 f"The checkpoint directory does not exist: {str(checkpoint_dir)}"
             )
-
+        tokenizer_config_path = checkpoint_dir / "tokenizer_config.json"
+        with open(tokenizer_config_path) as fp:
+            config = json.load(fp)
+        self.chat_template = config.get("chat_template", None)
+        if self.chat_template:
+            self.chat_template = Template(self.chat_template)
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
-
-        if chat_template is None:
-            chat_template = ChatTemplate.from_checkpoint_dir(checkpoint_dir)
-
-        self.chat_template = chat_template
 
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():
@@ -121,7 +122,7 @@ class Tokenizer:
     ) -> torch.Tensor:
         if use_chat_template:
             string = self.chat_template.apply_user(
-                user=string, add_generate_prompt=True
+                user=string, add_generation_prompt=True
             )
         if self.backend == "huggingface":
             self.processor: HFTokenizer
@@ -144,10 +145,24 @@ class Tokenizer:
             tokens = tokens[:max_length]
         return torch.tensor(tokens, dtype=torch.int, device=device)
 
+    def apply_chat_template(
+        self,
+        messages: List[Dict],
+        add_generation_prompt: bool = True,
+        enable_thinking: bool = True,
+    ) -> str:
+        assert self.chat_template, "Chat template is required for encoding messages"
+        string = self.chat_template.render(
+            messages=messages,
+            add_generation_prompt=add_generation_prompt,
+            enable_thinking=enable_thinking,
+        )
+        return string
+
     def encode_messages(
         self,
         messages: List[Message],
-        add_generate_prompt: bool = True,
+        add_generation_prompt: bool = True,
         device: Optional[torch.device] = None,
         bos: Optional[bool] = None,
         eos: bool = False,
@@ -157,7 +172,7 @@ class Tokenizer:
         assert self.chat_template, "Chat template is required for encoding messages"
         string = self.chat_template.apply_messages(
             messages,
-            add_generate_prompt=add_generate_prompt,
+            add_generation_prompt=add_generation_prompt,
             enable_thinking=enable_thinking,
         )
         return self.encode(
