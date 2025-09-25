@@ -62,6 +62,7 @@ for token in llm.stream(prompt=prompt):
 ## 支持的模型
 
 - Qwen3ForCausalLM
+- Qwen2ForCausalLM
 
 ## CLI 工具
 
