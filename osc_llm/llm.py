@@ -49,3 +49,36 @@ class LLM:
                 "content": content,
                 "thinking_content": thinking_content,
             }
+
+    def batch(
+        self,
+        messages: List[List[Dict[str, str]]],
+        sampling_params: List[SamplingParams] | None = None,
+        enable_thinking: bool = True,
+    ) -> List[Dict[str, str]]:
+        if sampling_params is None:
+            sampling_params = [SamplingParams() for _ in messages]
+        batch_prompts = [
+            self.tokenizer.apply_chat_template(
+                messages, enable_thinking=enable_thinking
+            )
+            for messages in messages
+        ]
+        batch_token_ids = [
+            self.tokenizer.encode(prompt).tolist() for prompt in batch_prompts
+        ]
+        batch_completion_token_ids = self.model.batch(batch_token_ids, sampling_params)
+        batch_contents = [
+            self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids
+        ]
+        batch_results = []
+        for content in batch_contents:
+            thinking_content, content = self.tokenizer.split_thinking_content(content)
+            batch_results.append(
+                {
+                    "role": "assistant",
+                    "content": content,
+                    "thinking_content": thinking_content,
+                }
+            )
+        return batch_results
