@@ -22,9 +22,9 @@ class CausalLM:
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json", "r") as f:
             self.hf_config: Dict = json.load(f)
-        assert (
-            self.hf_architecture in self.hf_config["architectures"]
-        ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        assert self.hf_architecture in self.hf_config["architectures"], (
+            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        )
         self.tokenizer = Tokenizer(checkpoint_dir=self.checkpoint_dir)
         self.model: TransformerDecoder = self.load()
 

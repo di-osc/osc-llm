@@ -6,6 +6,7 @@ from typing import List
 @Registry.chat_templates.register("Yi")
 @Registry.chat_templates.register("ChatML")
 @Registry.chat_templates.register("Qwen2ForCausalLM")
+@Registry.chat_templates.register("Qwen/Qwen2.5-0.5B-Instruct")
 class ChatMLChatTemplate(ChatTemplate):
     default_system: str = "You are a helpful assistant."
     stop_texts: List[str] = ["<|im_end|>"]
