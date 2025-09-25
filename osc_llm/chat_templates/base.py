@@ -121,9 +121,9 @@ class ChatTemplate(BaseModel):
         checkpoint_dir = Path(checkpoint_dir)
         # model_name : Qwen/Qwen3-0.6B
         model_name = checkpoint_dir.parent.name + "/" + checkpoint_dir.name
-        return Registry.chat_templates.get(model_name)()
+        return Registry.chat_templates.get(model_name)
 
     @classmethod
     def from_hf_architecture(cls, architecture: str) -> ChatTemplate:
         # architecture: Qwen3ForCausalLM
-        return Registry.chat_templates.get(architecture)()
+        return Registry.chat_templates.get(architecture)
