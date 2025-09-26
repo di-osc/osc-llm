@@ -62,6 +62,19 @@ class LLM:
             self.model.batch([token_ids], [sampling_params])[0]
         )
 
+    def batch_generate(
+        self,
+        prompts: List[str],
+        sampling_params: List[SamplingParams] | None = None,
+    ) -> List[str]:
+        if sampling_params is None:
+            sampling_params = [SamplingParams() for _ in prompts]
+        batch_token_ids = [self.tokenizer.encode(prompt).tolist() for prompt in prompts]
+        batch_completion_token_ids = self.model.batch(batch_token_ids, sampling_params)
+        return [
+            self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids
+        ]
+
     def apply_chat_template(
         self,
         messages: List[Dict[str, str]],
