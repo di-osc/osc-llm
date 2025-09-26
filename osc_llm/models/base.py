@@ -9,7 +9,6 @@ from osc_transformers import TransformerDecoder, SamplingParams, Sequence
 from confection import Config
 
 from ..registry import Registry
-from ..chat_templates import ChatTemplate
 
 
 class CausalLM:
@@ -84,9 +83,6 @@ class CausalLM:
     def osc_config(self) -> Config:
         """用来构建osc格式模型的配置文件"""
         raise NotImplementedError("Method not implemented")
-
-    def get_chat_template(self) -> ChatTemplate:
-        return ChatTemplate.from_hf_architecture(self.hf_architecture)
 
     def convert_checkpoint(self) -> Dict[str, torch.Tensor]:
         """将huggingface模型转换为osc格式模型
