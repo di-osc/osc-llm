@@ -50,35 +50,26 @@ class LLM:
                 "thinking_content": thinking_content,
             }
 
-    def batch(
+    def generate(
         self,
-        messages: List[List[Dict[str, str]]],
-        sampling_params: List[SamplingParams] | None = None,
-        enable_thinking: bool = True,
-    ) -> List[Dict[str, str]]:
+        prompt: str,
+        sampling_params: SamplingParams | None = None,
+    ) -> str:
         if sampling_params is None:
-            sampling_params = [SamplingParams() for _ in messages]
-        batch_prompts = [
-            self.tokenizer.apply_chat_template(
-                messages, enable_thinking=enable_thinking
-            )
-            for messages in messages
-        ]
-        batch_token_ids = [
-            self.tokenizer.encode(prompt).tolist() for prompt in batch_prompts
-        ]
-        batch_completion_token_ids = self.model.batch(batch_token_ids, sampling_params)
-        batch_contents = [
-            self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids
-        ]
-        batch_results = []
-        for content in batch_contents:
-            thinking_content, content = self.tokenizer.split_thinking_content(content)
-            batch_results.append(
-                {
-                    "role": "assistant",
-                    "content": content,
-                    "thinking_content": thinking_content,
-                }
-            )
-        return batch_results
+            sampling_params = SamplingParams()
+        token_ids = self.tokenizer.encode(prompt).tolist()
+        return self.tokenizer.decode(
+            self.model.batch([token_ids], [sampling_params])[0]
+        )
+
+    def apply_chat_template(
+        self,
+        messages: List[Dict[str, str]],
+        enable_thinking: bool = True,
+        add_generate_prompt: bool = True,
+    ) -> str:
+        return self.tokenizer.apply_chat_template(
+            messages,
+            enable_thinking=enable_thinking,
+            add_generate_prompt=add_generate_prompt,
+        )
