@@ -103,9 +103,8 @@ class Qwen2ForCausalLM(CausalLM):
         in_dim = {hidden_size}
         eps = {rms_norm_eps}
         """
-        self.hf_config["max_length"] = self.hf_config.get(
-            "max_length", self.hf_config["max_position_embeddings"]
-        )
+        if "max_length" not in self.hf_config:
+            self.hf_config["max_length"] = self.hf_config["max_position_embeddings"]
         if "head_dim" not in self.hf_config:
             self.hf_config["head_dim"] = (
                 self.hf_config["hidden_size"] // self.hf_config["num_attention_heads"]
