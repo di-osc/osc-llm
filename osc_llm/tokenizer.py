@@ -6,9 +6,8 @@ import re
 import torch
 from sentencepiece import SentencePieceProcessor
 from tokenizers import Tokenizer as HFTokenizer
-from jinja2 import Template
 
-from .chat_templates import Message
+from .prompt_template import PromptTemplate
 
 
 class Tokenizer:
@@ -22,11 +21,9 @@ class Tokenizer:
             raise NotADirectoryError(
                 f"The checkpoint directory does not exist: {str(checkpoint_dir)}"
             )
-        tokenizer_config_path = checkpoint_dir / "tokenizer_config.json"
-        with open(tokenizer_config_path) as fp:
-            config = json.load(fp)
-        chat_template_str = config.get("chat_template", None)
-        self.chat_template = Template(chat_template_str)
+        self.chat_template: PromptTemplate = PromptTemplate.from_checkpoint_dir(
+            checkpoint_dir
+        )
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
@@ -155,23 +152,21 @@ class Tokenizer:
 
     def encode_messages(
         self,
-        messages: List[Message],
+        messages: List[Dict],
         add_generation_prompt: bool = True,
+        enable_thinking: bool = False,
         device: Optional[torch.device] = None,
         bos: Optional[bool] = None,
         eos: bool = False,
         max_length: int = -1,
-        enable_thinking: bool = False,
     ) -> torch.Tensor:
         assert self.chat_template, "Chat template is required for encoding messages"
-        string = self.chat_template.apply_messages(
-            messages,
+        string = self.chat_template.render(
+            messages=messages,
             add_generation_prompt=add_generation_prompt,
             enable_thinking=enable_thinking,
         )
-        return self.encode(
-            string, device, bos, eos, max_length, use_chat_template=False
-        )
+        return self.encode(string, device, bos, eos, max_length)
 
     def decode(self, tensor: torch.Tensor | List[int]) -> str:
         tensor = tensor if isinstance(tensor, torch.Tensor) else torch.tensor(tensor)
@@ -238,16 +233,6 @@ class Tokenizer:
             )
         if self.backend == "sentencepiece":
             shutil.copyfile(self.tokenizer_path, save_dir / self.tokenizer_path.name)
-
-    @property
-    def stop_ids(self) -> List[List[int]]:
-        stop_ids = [torch.tensor([self.eos_id], dtype=torch.int)]
-        if self.chat_template:
-            for stop in self.chat_template.stop_texts:
-                stop_tokens = self.encode(stop)
-                if stop_tokens not in stop_ids:
-                    stop_ids.append(stop_tokens)
-        return stop_ids
 
     def has_special_chars(self, text: str) -> bool:
         """使用sentencepiece时，检查文本中是否包含特殊字符�.这种情况通常是由于一个中文字符被分割为几个token,而解码时没有合并回去导致的."""
