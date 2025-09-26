@@ -25,6 +25,7 @@ class CausalLM:
             self.hf_architecture in self.hf_config["architectures"]
         ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
         self.model: TransformerDecoder = self.load()
+        self.dtype = None
 
     def setup(
         self,
@@ -35,6 +36,7 @@ class CausalLM:
         max_model_len = self.hf_config.get("max_length", 4096)
         dtype = self.hf_config.get("torch_dtype", "bfloat16")
         dtype = str_to_dtype(dtype)
+        self.dtype = dtype
         self.model.setup(
             max_model_len=max_model_len,
             gpu_memory_utilization=gpu_memory_utilization,
