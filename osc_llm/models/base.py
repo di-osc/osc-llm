@@ -27,7 +27,10 @@ class CausalLM:
         self.model: TransformerDecoder = self.load()
 
     def setup(
-        self, eos_id: int, gpu_memory_utilization: float = 0.5, device: str = "cuda"
+        self,
+        eos_id: int | List,
+        gpu_memory_utilization: float = 0.5,
+        device: str = "cuda",
     ):
         max_model_len = self.hf_config.get("max_length", 4096)
         dtype = self.hf_config.get("torch_dtype", "bfloat16")
