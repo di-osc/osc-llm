@@ -15,6 +15,10 @@ class Tokenizer:
         self,
         checkpoint_dir: Union[Path, str],
     ) -> None:
+        """Tokenizer wrapper supporting SentencePiece and HF Tokenizers.
+
+        Discovers tokenizer files and special token ids from the checkpoint
+        directory and loads a matching processor backend."""
         checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir = checkpoint_dir
         if not checkpoint_dir.exists():
@@ -142,6 +146,7 @@ class Tokenizer:
         add_generation_prompt: bool = True,
         enable_thinking: bool = True,
     ) -> str:
+        """Render messages into a single prompt string using chat template."""
         assert self.chat_template, "Chat template is required for encoding messages"
         string = self.chat_template.render(
             messages=messages,
@@ -160,6 +165,7 @@ class Tokenizer:
         eos: bool = False,
         max_length: int = -1,
     ) -> torch.Tensor:
+        """Encode chat messages directly, using the chat template internally."""
         assert self.chat_template, "Chat template is required for encoding messages"
         string = self.chat_template.render(
             messages=messages,
@@ -235,10 +241,18 @@ class Tokenizer:
             shutil.copyfile(self.tokenizer_path, save_dir / self.tokenizer_path.name)
 
     def has_special_chars(self, text: str) -> bool:
-        """使用sentencepiece时，检查文本中是否包含特殊字符�.这种情况通常是由于一个中文字符被分割为几个token,而解码时没有合并回去导致的."""
+        """Check if decoded text contains the Unicode replacement char (�).
+
+        This is primarily relevant when using SentencePiece, where a single
+        character may be split into multiple tokens and not merged back during
+        incremental decoding."""
         return "�" in text
 
     def split_thinking_content(self, content: str) -> Tuple[str, str]:
+        """Extract optional <think>...</think> block and return (thinking, content).
+
+        If a <think> block exists, it is removed from the main content and
+        returned separately, both trimmed of surrounding whitespace and newlines."""
         pattern = r"<think>(.*?)</think>"
         match = re.search(pattern, content, re.DOTALL)
         if match:

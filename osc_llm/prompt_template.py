@@ -10,33 +10,33 @@ class PromptTemplate:
     """Jinja2 prompt template"""
 
     def __init__(self, template: str) -> None:
-        """初始化模板
+        """Initialize the template.
 
         Args:
-            template (str): 模板字符串
+            template (str): Raw Jinja2 template string.
         """
         self.template: Template = Template(template)
 
     def render(self, **kwargs: Any) -> str:
-        """渲染模板
+        """Render the template with keyword arguments.
 
         Args:
-            **kwargs: 模板参数
+            **kwargs: Variables to render into the template.
 
         Returns:
-            str: 渲染后的模板
+            str: The rendered string.
         """
         return self.template.render(**kwargs)
 
     @classmethod
     def from_checkpoint_dir(cls, checkpoint_dir: str) -> "PromptTemplate | None":
-        """从LLM checkpoint目录加载Jinja2格式文件
+        """Load a Jinja2 chat template from an LLM checkpoint directory.
 
         Args:
-            checkpoint_dir (str): LLM checkpoint目录
+            checkpoint_dir (str): Path to the checkpoint directory.
 
         Returns:
-            PromptTemplate: Jinja2格式文件
+            PromptTemplate | None: The prompt template if available, else None.
         """
         template_path = Path(checkpoint_dir) / "tokenizer_config.json"
         with open(template_path, "r") as f:

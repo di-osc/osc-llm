@@ -12,7 +12,10 @@ from ..registry import Registry
 
 
 class CausalLM:
-    """huggingface因果语言模型基类,一般情况下只需要完成`weight_map`属性和`osc_config`属性即可。"""
+    """Base class for Hugging Face causal language models.
+
+    In most cases, subclasses only need to implement the `weight_map` and
+    `osc_config` properties."""
 
     hf_architecture: str
 
@@ -32,6 +35,7 @@ class CausalLM:
         gpu_memory_utilization: float = 0.5,
         device: str = "cuda",
     ):
+        """Initialize runtime with device, precision, memory, and EOS settings."""
         max_model_len = self.hf_config.get("max_length", 4096)
         dtype = self.hf_config.get("torch_dtype", "bfloat16")
         dtype = str_to_dtype(dtype)
@@ -48,6 +52,7 @@ class CausalLM:
     def stream(
         self, token_ids: List[int], sampling_params: SamplingParams | None = None
     ) -> Generator[str, None, None]:
+        """Yield decoded text progressively for a single prompt."""
         if sampling_params is None:
             sampling_params = SamplingParams()
         seq = Sequence(
@@ -61,6 +66,7 @@ class CausalLM:
         batch_token_ids: List[List[int]],
         sampling_params: List[SamplingParams] | None = None,
     ) -> List[List[int]]:
+        """Generate completion token ids for a batch of prompts."""
         if sampling_params is None:
             sampling_params = [SamplingParams() for _ in batch_token_ids]
         seqs = [
@@ -76,20 +82,16 @@ class CausalLM:
 
     @property
     def weight_map(self) -> Dict[str, str]:
-        """用来进行参数名称转换"""
+        """Mapping used for converting parameter names between formats."""
         raise NotImplementedError("Method not implemented")
 
     @property
     def osc_config(self) -> Config:
-        """用来构建osc格式模型的配置文件"""
+        """Return configuration used to build an osc-transformers model."""
         raise NotImplementedError("Method not implemented")
 
     def convert_checkpoint(self) -> Dict[str, torch.Tensor]:
-        """将huggingface模型转换为osc格式模型
-
-        Args:
-            save_dir (str): 保存目录
-        """
+        """Convert a Hugging Face checkpoint into osc-transformers state_dict."""
         pytorch_model = Path(self.checkpoint_dir) / "pytorch_model.bin"
         pytorch_idx_file = Path(self.checkpoint_dir) / "pytorch_model.bin.index.json"
         safetensors_model = Path(self.checkpoint_dir) / "model.safetensors"
@@ -196,12 +198,14 @@ class CausalLM:
         return model.eval()
 
     def load(self) -> nn.Module:
+        """Construct the model and load converted checkpoint weights."""
         model = self.build_model(config=self.osc_config, empty_init=True)
         states = self.convert_checkpoint()
         model = self.load_checkpoint(model=model, states=states)
         return model
 
     def get_default_presision(self) -> str:
+        """Return default torch precision string from config or global default."""
         if "torch_dtype" in self.hf_config:
             torch_precision = str_to_dtype(self.hf_config["torch_dtype"])
             return torch_precision
@@ -222,7 +226,7 @@ def str_to_dtype(dtype: str) -> torch.dtype:
 
 
 def get_supported_hf_models():
-    """获取支持的huggingface模型架构"""
+    """Return the list of supported Hugging Face model architectures."""
     hf_models = []
     for model in Registry.models.get_all():
         hf_models.append(model)

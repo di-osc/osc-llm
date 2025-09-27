@@ -1,9 +1,9 @@
-## 项目描述
+## Project Description
 
-该项目是一个基于osc-transformers构建的大模型推理工具，轻量级别，暂仅支持单卡推理，目标是构建低延迟的大模型推理服务，以支持其它基于LLM的AI推理系统，例如语音生成，音乐生成，以及实时语音等。
+This project is a lightweight large language model inference toolkit built on top of osc-transformers. It currently supports single-GPU inference. The goal is to provide a low-latency LLM inference service to power other AI systems such as speech generation, music generation, and real-time voice applications.
 
 
-### 技术栈
+### Tech Stack
 
 - [osc-transformers](https://github.com/di-osc/osc-transformers)
 - [flash-attn](https://github.com/Dao-AILab/flash-attention)
@@ -11,8 +11,5 @@
 
 ### CausalLM
 
-实现从HF checkpoint到osc-transformers构建全流程控制，添加新模型继承该基类即可。一般情况下仅需要实现`weight_map`和`osc_config`属性，`weight_map`用于映射HF checkpoint的权重到osc-transformers的权重，`osc_config`用于构建osc-transformers的配置。
-
-
-
+Provides end-to-end control for building models from HF checkpoints to osc-transformers. To add a new model, inherit from the base class and implement the `weight_map` and `osc_config` properties. The `weight_map` maps HF checkpoint weights to osc-transformers weights, and `osc_config` constructs the osc-transformers configuration.
 
