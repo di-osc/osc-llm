@@ -7,13 +7,13 @@
 - **CUDA Graph**: 编译优化，减少推理延迟。
 - **PagedAttention**: 高效的KV缓存管理，支持高并发。
 - **连续批处理**: 支持动态批量推理优化。
-- **基于FlashAttention构建**: 长序列显存优化。
+- **FlashAttention**: 长序列显存优化。
 
 > 💡 所有技术细节均基于[osc-transformers](https://github.com/di-osc/osc-transformers)构建，详情请前往查看。
 
 ## 安装
 
-- 安装[最新版本pytorch](https://pytorch.org/)
+- 安装[pytorch](https://pytorch.org/)
 - 安装[flash-attn](https://github.com/Dao-AILab/flash-attention): 建议下载官方构建好的whl包，避免编译问题
 - 安装osc-llm
 ```bash

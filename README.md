@@ -9,13 +9,13 @@ A lightweight LLM inference toolkit focused on minimizing inference latency.
 - **CUDA Graph**: Compilation optimizations that reduce inference latency
 - **PagedAttention**: Efficient KV-cache management enabling long-sequence inference
 - **Continuous batching**: Supports dynamic batch inference optimization
-- **Built on FlashAttention**: Memory optimization for long sequences
+- **FlashAttention**: Memory optimization for long sequences
 
 > 💡 All technical details are built on [osc-transformers](https://github.com/di-osc/osc-transformers), please visit for more details.
 
 ## Installation
 
-- Install the [latest PyTorch](https://pytorch.org/)
+- Install the [PyTorch](https://pytorch.org/)
 - Install [flash-attn](https://github.com/Dao-AILab/flash-attention): recommended to use the official prebuilt wheel to avoid build issues
 - Install osc-llm
 ```bash
