@@ -17,7 +17,7 @@ def find_multiple(n: int, k: int) -> int:
 
 
 def get_chat_template(name) -> Optional[Config]:
-    """在一个checkpoint的名称中获取chat模板"""
+    """Return the chat template whose key is contained in the checkpoint name."""
     for k, v in Registry.chat_templates.get_all().items():
         if k in name:
             return v
