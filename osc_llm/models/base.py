@@ -27,6 +27,10 @@ class CausalLM:
             self.hf_architecture in self.hf_config["architectures"]
         ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
         self.model: TransformerDecoder = self.load()
+        cfg_path = self.checkpoint_dir / "model.cfg"
+        if not cfg_path.exists():
+            self.osc_config.to_disk(cfg_path)
+            logger.info(f"Model config saved to {cfg_path}")
         self.dtype = None
 
     def setup(
