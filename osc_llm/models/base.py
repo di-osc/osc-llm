@@ -30,7 +30,7 @@ class CausalLM:
         cfg_path = self.checkpoint_dir / "model.cfg"
         if not cfg_path.exists():
             self.osc_config.to_disk(cfg_path)
-            logger.info(f"Model config saved to {cfg_path}")
+            logger.info(f"✅ Saved model config to {cfg_path}")
         self.dtype = None
 
     def setup(
