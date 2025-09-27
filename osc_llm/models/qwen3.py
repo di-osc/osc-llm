@@ -12,7 +12,7 @@ class Qwen3ForCausalLM(CausalLM):
 
     @property
     def weight_map(self) -> Dict:
-        """获取qwen3权重映射表"""
+        """Return weight name mapping from HF Qwen3 to osc-transformers."""
         weight_map = {
             "model.embed_tokens.weight": "embedding.embed.weight",
             "model.norm.weight": "head_norm.weight",

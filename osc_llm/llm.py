@@ -13,6 +13,7 @@ class LLM:
         gpu_memory_utilization: float = 0.5,
         device: str = "cuda",
     ):
+        """High-level convenience wrapper around tokenizer + causal LM runtime."""
         self.checkpoint_dir = checkpoint_dir
         self.tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
         self.model = load_causal_lm(checkpoint_dir)
@@ -29,6 +30,7 @@ class LLM:
         enable_thinking: bool = True,
         stream: bool = False,
     ) -> Dict[str, str] | Generator[str, None, None]:
+        """Chat API that renders messages via chat template and generates reply."""
         if sampling_params is None:
             sampling_params = SamplingParams()
         prompt = self.tokenizer.apply_chat_template(
@@ -55,6 +57,7 @@ class LLM:
         prompt: str,
         sampling_params: SamplingParams | None = None,
     ) -> str:
+        """One-shot text generation for a single prompt."""
         if sampling_params is None:
             sampling_params = SamplingParams()
         token_ids = self.tokenizer.encode(prompt).tolist()
@@ -67,6 +70,7 @@ class LLM:
         prompts: List[str],
         sampling_params: List[SamplingParams] | None = None,
     ) -> List[str]:
+        """Generate completions for a batch of prompts."""
         if sampling_params is None:
             sampling_params = [SamplingParams() for _ in prompts]
         batch_token_ids = [self.tokenizer.encode(prompt).tolist() for prompt in prompts]
@@ -81,6 +85,7 @@ class LLM:
         enable_thinking: bool = True,
         add_generate_prompt: bool = True,
     ) -> str:
+        """Expose chat templating for external inspection or debugging."""
         return self.tokenizer.apply_chat_template(
             messages,
             enable_thinking=enable_thinking,
