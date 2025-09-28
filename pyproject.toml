@@ -55,3 +55,13 @@ build-backend = "hatchling.build"
 dev = [
     "ipykernel>=6.29.5",
 ]
+
+[tool.ruff]
+line-length = 120
+exclude = [
+  "build",
+  "dist",
+  "docs",
+]
+# Use Google-style docstrings.
+lint.pydocstyle.convention = "google"
