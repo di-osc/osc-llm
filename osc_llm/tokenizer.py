@@ -1,7 +1,7 @@
 import json
-from pathlib import Path
-from typing import Optional, Union, Generator, List, Dict, Tuple
 import re
+from collections.abc import Generator
+from pathlib import Path
 
 import torch
 from sentencepiece import SentencePieceProcessor
@@ -13,7 +13,7 @@ from .prompt_template import PromptTemplate
 class Tokenizer:
     def __init__(
         self,
-        checkpoint_dir: Union[Path, str],
+        checkpoint_dir: Path | str,
     ) -> None:
         """Tokenizer wrapper supporting SentencePiece and HF Tokenizers.
 
@@ -22,12 +22,8 @@ class Tokenizer:
         checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir = checkpoint_dir
         if not checkpoint_dir.exists():
-            raise NotADirectoryError(
-                f"The checkpoint directory does not exist: {str(checkpoint_dir)}"
-            )
-        self.chat_template: PromptTemplate = PromptTemplate.from_checkpoint_dir(
-            checkpoint_dir
-        )
+            raise NotADirectoryError(f"The checkpoint directory does not exist: {str(checkpoint_dir)}")
+        self.chat_template: PromptTemplate = PromptTemplate.from_checkpoint_dir(checkpoint_dir)
         self.use_bos = self.check_if_bos_token_used(checkpoint_dir)
         self.bos_id = None
         self.eos_id = None
@@ -35,9 +31,7 @@ class Tokenizer:
         # some checkpoints have both files, `.model` takes precedence
         if (vocabulary_path := checkpoint_dir / "tokenizer.model").is_file():
             self.tokenizer_path = checkpoint_dir / "tokenizer.model"
-            self.processor: SentencePieceProcessor = SentencePieceProcessor(
-                model_file=str(vocabulary_path)
-            )
+            self.processor: SentencePieceProcessor = SentencePieceProcessor(model_file=str(vocabulary_path))
             self.backend = "sentencepiece"
             self.bos_id = self.processor.bos_id()
             self.eos_id = self.processor.eos_id()
@@ -47,23 +41,15 @@ class Tokenizer:
             self.processor: HFTokenizer = HFTokenizer.from_file(str(vocabulary_path))
             self.backend = "huggingface"
 
-            if (
-                special_tokens_path := checkpoint_dir / "tokenizer_config.json"
-            ).is_file():
+            if (special_tokens_path := checkpoint_dir / "tokenizer_config.json").is_file():
                 self.tokenizer_config_path = checkpoint_dir / "tokenizer_config.json"
                 with open(special_tokens_path) as fp:
                     config = json.load(fp)
                 bos_token = config.get("bos_token")
-                self.bos_id = (
-                    self.token_to_id(bos_token) if bos_token is not None else None
-                )
+                self.bos_id = self.token_to_id(bos_token) if bos_token is not None else None
                 eos_token = config.get("eos_token")
-                self.eos_id = (
-                    self.token_to_id(eos_token) if eos_token is not None else None
-                )
-            if (
-                special_tokens_path := checkpoint_dir / "generation_config.json"
-            ).is_file():
+                self.eos_id = self.token_to_id(eos_token) if eos_token is not None else None
+            if (special_tokens_path := checkpoint_dir / "generation_config.json").is_file():
                 self.generation_config_path = checkpoint_dir / "generation_config.json"
                 with open(special_tokens_path) as fp:
                     config = json.load(fp)
@@ -94,28 +80,21 @@ class Tokenizer:
         return id_
 
     def check_if_bos_token_used(self, checkpoint_dir: Path) -> bool:
-        if not (
-            tokenizer_config_path := checkpoint_dir / "tokenizer_config.json"
-        ).is_file():
+        if not (tokenizer_config_path := checkpoint_dir / "tokenizer_config.json").is_file():
             return False
         with open(tokenizer_config_path) as fp:
             config = json.load(fp)
-        if any(
-            config.get(check, False) for check in ("add_bos_token", "add_prefix_space")
-        ):
+        if any(config.get(check, False) for check in ("add_bos_token", "add_prefix_space")):
             return True
         # for examples that also use the Llama tokenizer, but do not have or set add_bos_token to True.
         # ex: https://huggingface.co/stabilityai/StableBeluga2/blob/main/tokenizer_config.json#L2
-        return (
-            config.get("add_bos_token") is None
-            and config.get("tokenizer_class") == "LlamaTokenizer"
-        )
+        return config.get("add_bos_token") is None and config.get("tokenizer_class") == "LlamaTokenizer"
 
     def encode(
         self,
         string: str,
-        device: Optional[torch.device] = None,
-        bos: Optional[bool] = None,
+        device: torch.device | None = None,
+        bos: bool | None = None,
         eos: bool = False,
         max_length: int = -1,
     ) -> torch.Tensor:
@@ -130,9 +109,7 @@ class Tokenizer:
         if bos or (bos is None and self.use_bos):
             bos_id = self.bos_id
             if bos_id is None:
-                raise NotImplementedError(
-                    "This tokenizer does not have a defined a bos token"
-                )
+                raise NotImplementedError("This tokenizer does not have a defined a bos token")
             tokens = [bos_id] + tokens
         if eos:
             tokens = tokens + [self.eos_id]
@@ -142,7 +119,7 @@ class Tokenizer:
 
     def apply_chat_template(
         self,
-        messages: List[Dict],
+        messages: list[dict],
         add_generation_prompt: bool = True,
         enable_thinking: bool = True,
     ) -> str:
@@ -157,11 +134,11 @@ class Tokenizer:
 
     def encode_messages(
         self,
-        messages: List[Dict],
+        messages: list[dict],
         add_generation_prompt: bool = True,
         enable_thinking: bool = False,
-        device: Optional[torch.device] = None,
-        bos: Optional[bool] = None,
+        device: torch.device | None = None,
+        bos: bool | None = None,
         eos: bool = False,
         max_length: int = -1,
     ) -> torch.Tensor:
@@ -174,7 +151,7 @@ class Tokenizer:
         )
         return self.encode(string, device, bos, eos, max_length)
 
-    def decode(self, tensor: torch.Tensor | List[int]) -> str:
+    def decode(self, tensor: torch.Tensor | list[int]) -> str:
         tensor = tensor if isinstance(tensor, torch.Tensor) else torch.tensor(tensor)
         tokens = [tensor.item()] if tensor.ndim == 0 else tensor.tolist()
         return self.processor.decode(tokens)
@@ -231,12 +208,8 @@ class Tokenizer:
 
         if self.backend == "huggingface":
             shutil.copyfile(self.tokenizer_path, save_dir / self.tokenizer_path.name)
-            shutil.copyfile(
-                self.tokenizer_config_path, save_dir / self.tokenizer_config_path.name
-            )
-            shutil.copyfile(
-                self.generation_config_path, save_dir / self.generation_config_path.name
-            )
+            shutil.copyfile(self.tokenizer_config_path, save_dir / self.tokenizer_config_path.name)
+            shutil.copyfile(self.generation_config_path, save_dir / self.generation_config_path.name)
         if self.backend == "sentencepiece":
             shutil.copyfile(self.tokenizer_path, save_dir / self.tokenizer_path.name)
 
@@ -248,7 +221,7 @@ class Tokenizer:
         incremental decoding."""
         return "�" in text
 
-    def split_thinking_content(self, content: str) -> Tuple[str, str]:
+    def split_thinking_content(self, content: str) -> tuple[str, str]:
         """Extract optional <think>...</think> block and return (thinking, content).
 
         If a <think> block exists, it is removed from the main content and

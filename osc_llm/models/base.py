@@ -1,12 +1,12 @@
 import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Dict, Union, Tuple, List, Generator
 
 import torch
 import torch.nn as nn
-from loguru import logger
-from osc_transformers import TransformerDecoder, SamplingParams, Sequence
 from confection import Config
+from loguru import logger
+from osc_transformers import SamplingParams, Sequence, TransformerDecoder
 
 from ..registry import Registry
 
@@ -21,11 +21,11 @@ class CausalLM:
 
     def __init__(self, checkpoint_dir: str):
         self.checkpoint_dir = Path(checkpoint_dir)
-        with open(self.checkpoint_dir / "config.json", "r") as f:
-            self.hf_config: Dict = json.load(f)
-        assert (
-            self.hf_architecture in self.hf_config["architectures"]
-        ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        with open(self.checkpoint_dir / "config.json") as f:
+            self.hf_config: dict = json.load(f)
+        assert self.hf_architecture in self.hf_config["architectures"], (
+            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
+        )
         self.model: TransformerDecoder = self.load()
         cfg_path = self.checkpoint_dir / "model.cfg"
         if not cfg_path.exists():
@@ -35,7 +35,7 @@ class CausalLM:
 
     def setup(
         self,
-        eos_id: int | List,
+        eos_id: int | list,
         gpu_memory_utilization: float = 0.5,
         device: str = "cuda",
     ):
@@ -53,9 +53,7 @@ class CausalLM:
             model_name=self.hf_architecture,
         )
 
-    def stream(
-        self, token_ids: List[int], sampling_params: SamplingParams | None = None
-    ) -> Generator[str, None, None]:
+    def stream(self, token_ids: list[int], sampling_params: SamplingParams | None = None) -> Generator[str, None, None]:
         """Yield decoded text progressively for a single prompt."""
         if sampling_params is None:
             sampling_params = SamplingParams()
@@ -67,9 +65,9 @@ class CausalLM:
 
     def batch(
         self,
-        batch_token_ids: List[List[int]],
-        sampling_params: List[SamplingParams] | None = None,
-    ) -> List[List[int]]:
+        batch_token_ids: list[list[int]],
+        sampling_params: list[SamplingParams] | None = None,
+    ) -> list[list[int]]:
         """Generate completion token ids for a batch of prompts."""
         if sampling_params is None:
             sampling_params = [SamplingParams() for _ in batch_token_ids]
@@ -85,7 +83,7 @@ class CausalLM:
         return batch_completion_token_ids
 
     @property
-    def weight_map(self) -> Dict[str, str]:
+    def weight_map(self) -> dict[str, str]:
         """Mapping used for converting parameter names between formats."""
         raise NotImplementedError("Method not implemented")
 
@@ -94,14 +92,12 @@ class CausalLM:
         """Return configuration used to build an osc-transformers model."""
         raise NotImplementedError("Method not implemented")
 
-    def convert_checkpoint(self) -> Dict[str, torch.Tensor]:
+    def convert_checkpoint(self) -> dict[str, torch.Tensor]:
         """Convert a Hugging Face checkpoint into osc-transformers state_dict."""
         pytorch_model = Path(self.checkpoint_dir) / "pytorch_model.bin"
         pytorch_idx_file = Path(self.checkpoint_dir) / "pytorch_model.bin.index.json"
         safetensors_model = Path(self.checkpoint_dir) / "model.safetensors"
-        safetensors_idx_file = (
-            Path(self.checkpoint_dir) / "model.safetensors.index.json"
-        )
+        safetensors_idx_file = Path(self.checkpoint_dir) / "model.safetensors.index.json"
         if pytorch_model.exists() or pytorch_idx_file.exists():
             sd = self.convert_pytorch_format()
         elif safetensors_model.exists() or safetensors_idx_file.exists():
@@ -120,18 +116,14 @@ class CausalLM:
         wmap = self.weight_map
         index_file = self.checkpoint_dir / "pytorch_model.bin.index.json"
         if index_file.exists():
-            with open(index_file, "r") as f:
+            with open(index_file) as f:
                 index = json.load(f)
-            files = [
-                self.checkpoint_dir / file for file in set(index["weight_map"].values())
-            ]
+            files = [self.checkpoint_dir / file for file in set(index["weight_map"].values())]
         else:
             files = [self.checkpoint_dir / "pytorch_model.bin"]
         assert len(files) > 0, "No pytorch model file found"
         for file in files:
-            weights = torch.load(
-                str(file), map_location="cpu", weights_only=True, mmap=True
-            )
+            weights = torch.load(str(file), map_location="cpu", weights_only=True, mmap=True)
             for key in weights:
                 if key not in wmap:
                     logger.warning(f"{key} not in wmap")
@@ -144,20 +136,16 @@ class CausalLM:
         wmap = self.weight_map
         index_file = self.checkpoint_dir / "model.safetensors.index.json"
         if index_file.exists():
-            with open(index_file, "r") as f:
+            with open(index_file) as f:
                 index = json.load(f)
-            files = [
-                self.checkpoint_dir / file for file in set(index["weight_map"].values())
-            ]
+            files = [self.checkpoint_dir / file for file in set(index["weight_map"].values())]
         else:
             files = [self.checkpoint_dir / "model.safetensors"]
         assert len(files) > 0, "No pytorch model file found"
         try:
             from safetensors import safe_open
         except Exception:
-            raise ImportError(
-                "Please install safetensors first, run `pip install safetensors`"
-            )
+            raise ImportError("Please install safetensors first, run `pip install safetensors`")
         for file in files:
             with safe_open(file, framework="pt") as f:
                 for key in f.keys():
@@ -169,11 +157,11 @@ class CausalLM:
 
     def build_model(
         self,
-        config: Union[Dict, str, Path, Config],
+        config: dict | str | Path | Config,
         model_section: str = "model",
         empty_init: bool = True,
         return_config: bool = False,
-    ) -> Union[torch.nn.Module, Tuple[torch.nn.Module, Config]]:
+    ) -> torch.nn.Module | tuple[torch.nn.Module, Config]:
         """Build a model from a configuration.
 
         Args:
@@ -185,16 +173,12 @@ class CausalLM:
         Returns:
             torch.nn.Module: the model built from the configuration.
         """
-        model = TransformerDecoder.from_config(
-            config, empty_init=empty_init, model_section=model_section
-        )
+        model = TransformerDecoder.from_config(config, empty_init=empty_init, model_section=model_section)
         if return_config:
             return model, config
         return model
 
-    def load_checkpoint(
-        self, model: nn.Module, states: Dict[str, torch.Tensor]
-    ) -> nn.Module:
+    def load_checkpoint(self, model: nn.Module, states: dict[str, torch.Tensor]) -> nn.Module:
         model.load_state_dict(
             state_dict=states,
             assign=True,
@@ -239,13 +223,11 @@ def get_supported_hf_models():
 
 def load_causal_lm(checkpoint_dir: str) -> CausalLM:
     config_path = Path(checkpoint_dir) / "config.json"
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = json.load(f)
     model_name = config["architectures"][0]
     allowed_models = get_supported_hf_models()
     if model_name not in allowed_models:
-        logger.error(
-            f"Model {model_name} is not supported. Supported models are: {allowed_models}"
-        )
+        logger.error(f"Model {model_name} is not supported. Supported models are: {allowed_models}")
     model: CausalLM = Registry.models.get(model_name)(checkpoint_dir)
     return model

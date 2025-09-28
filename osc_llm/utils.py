@@ -1,10 +1,9 @@
-from typing import Optional
 import statistics
 import uuid
 
 import torch
-from wasabi import msg
 from confection import Config
+from wasabi import msg
 
 from .registry import Registry
 
@@ -16,7 +15,7 @@ def find_multiple(n: int, k: int) -> int:
     return n + k - (n % k)
 
 
-def get_chat_template(name) -> Optional[Config]:
+def get_chat_template(name) -> Config | None:
     """Return the chat template whose key is contained in the checkpoint name."""
     for k, v in Registry.chat_templates.get_all().items():
         if k in name:

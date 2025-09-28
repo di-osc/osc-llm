@@ -1,7 +1,6 @@
-from .qwen3 import Qwen3ForCausalLM
-from .qwen2 import Qwen2ForCausalLM
 from .base import CausalLM, load_causal_lm
-
+from .qwen2 import Qwen2ForCausalLM
+from .qwen3 import Qwen3ForCausalLM
 
 __all__ = [
     "CausalLM",

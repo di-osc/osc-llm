@@ -39,7 +39,7 @@ class PromptTemplate:
             PromptTemplate | None: The prompt template if available, else None.
         """
         template_path = Path(checkpoint_dir) / "tokenizer_config.json"
-        with open(template_path, "r") as f:
+        with open(template_path) as f:
             template = json.load(f)
         chat_template = template.get("chat_template", None)
         if chat_template is None:

@@ -1,4 +1,4 @@
-from typing import List, Dict, Generator
+from collections.abc import Generator
 
 from osc_transformers import SamplingParams
 
@@ -25,26 +25,20 @@ class LLM:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         sampling_params: SamplingParams | None = None,
         enable_thinking: bool = True,
         stream: bool = False,
-    ) -> Dict[str, str] | Generator[str, None, None]:
+    ) -> dict[str, str] | Generator[str, None, None]:
         """Chat API that renders messages via chat template and generates reply."""
         if sampling_params is None:
             sampling_params = SamplingParams()
-        prompt = self.tokenizer.apply_chat_template(
-            messages, enable_thinking=enable_thinking
-        )
+        prompt = self.tokenizer.apply_chat_template(messages, enable_thinking=enable_thinking)
         token_ids = self.tokenizer.encode(prompt).tolist()
         if stream:
-            return self.tokenizer.decode_stream(
-                self.model.stream(token_ids, sampling_params)
-            )
+            return self.tokenizer.decode_stream(self.model.stream(token_ids, sampling_params))
         else:
-            content = self.tokenizer.decode(
-                self.model.batch([token_ids], [sampling_params])[0]
-            )
+            content = self.tokenizer.decode(self.model.batch([token_ids], [sampling_params])[0])
             thinking_content, content = self.tokenizer.split_thinking_content(content)
             return {
                 "role": "assistant",
@@ -61,27 +55,23 @@ class LLM:
         if sampling_params is None:
             sampling_params = SamplingParams()
         token_ids = self.tokenizer.encode(prompt).tolist()
-        return self.tokenizer.decode(
-            self.model.batch([token_ids], [sampling_params])[0]
-        )
+        return self.tokenizer.decode(self.model.batch([token_ids], [sampling_params])[0])
 
     def batch_generate(
         self,
-        prompts: List[str],
-        sampling_params: List[SamplingParams] | None = None,
-    ) -> List[str]:
+        prompts: list[str],
+        sampling_params: list[SamplingParams] | None = None,
+    ) -> list[str]:
         """Generate completions for a batch of prompts."""
         if sampling_params is None:
             sampling_params = [SamplingParams() for _ in prompts]
         batch_token_ids = [self.tokenizer.encode(prompt).tolist() for prompt in prompts]
         batch_completion_token_ids = self.model.batch(batch_token_ids, sampling_params)
-        return [
-            self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids
-        ]
+        return [self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids]
 
     def apply_chat_template(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         enable_thinking: bool = True,
         add_generate_prompt: bool = True,
     ) -> str:
