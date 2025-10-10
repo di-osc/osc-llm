@@ -115,7 +115,7 @@ class Tokenizer:
             tokens = tokens + [self.eos_id]
         if max_length > 0:
             tokens = tokens[:max_length]
-        return torch.tensor(tokens, dtype=torch.int, device=device)
+        return torch.tensor(tokens, dtype=torch.int64, device=device)
 
     def apply_chat_template(
         self,
