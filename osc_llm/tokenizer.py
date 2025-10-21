@@ -2,6 +2,7 @@ import json
 import re
 from collections.abc import Generator
 from pathlib import Path
+from typing import List
 
 import torch
 from sentencepiece import SentencePieceProcessor
@@ -97,7 +98,8 @@ class Tokenizer:
         bos: bool | None = None,
         eos: bool = False,
         max_length: int = -1,
-    ) -> torch.Tensor:
+        return_tensors: bool = False,
+    ) -> torch.Tensor | list[int]:
         if self.backend == "huggingface":
             self.processor: HFTokenizer
             tokens = self.processor.encode(string, add_special_tokens=False).ids
@@ -115,7 +117,9 @@ class Tokenizer:
             tokens = tokens + [self.eos_id]
         if max_length > 0:
             tokens = tokens[:max_length]
-        return torch.tensor(tokens, dtype=torch.int64, device=device)
+        if return_tensors:
+            return torch.tensor(tokens, dtype=torch.int64, device=device)
+        return tokens
 
     def apply_chat_template(
         self,
@@ -141,7 +145,7 @@ class Tokenizer:
         bos: bool | None = None,
         eos: bool = False,
         max_length: int = -1,
-    ) -> torch.Tensor:
+    ) -> List[int]:
         """Encode chat messages directly, using the chat template internally."""
         assert self.chat_template, "Chat template is required for encoding messages"
         string = self.chat_template.render(

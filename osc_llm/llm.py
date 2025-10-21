@@ -38,7 +38,7 @@ class LLM:
         prompt = self.tokenizer.apply_chat_template(
             messages, enable_thinking=enable_thinking, add_generation_prompt=True
         )
-        token_ids = self.tokenizer.encode(prompt).tolist()
+        token_ids = self.tokenizer.encode(prompt)
         if stream:
             return self.tokenizer.decode_stream(self.model.stream(token_ids, sampling_params))
 
