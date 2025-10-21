@@ -23,9 +23,9 @@ class CausalLM:
         self.checkpoint_dir = Path(checkpoint_dir)
         with open(self.checkpoint_dir / "config.json") as f:
             self.hf_config: dict = json.load(f)
-        assert self.hf_architecture in self.hf_config["architectures"], (
-            f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
-        )
+        assert (
+            self.hf_architecture in self.hf_config["architectures"]
+        ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
         self.model: TransformerDecoder = self.load()
         cfg_path = self.checkpoint_dir / "model.cfg"
         if not cfg_path.exists():
@@ -36,8 +36,9 @@ class CausalLM:
     def setup(
         self,
         eos_id: int | list,
-        gpu_memory_utilization: float = 0.5,
+        gpu_memory_utilization: float | None = None,
         device: str = "cuda",
+        **kwargs,
     ):
         """Initialize runtime with device, precision, memory, and EOS settings."""
         max_model_len = self.hf_config.get("max_length", 4096)
@@ -51,12 +52,13 @@ class CausalLM:
             dtype=dtype,
             device=device,
             model_name=self.hf_architecture,
+            **kwargs,
         )
 
     def stream(self, token_ids: list[int], sampling_params: SamplingParams | None = None) -> Generator[str, None, None]:
         """Yield decoded text progressively for a single prompt."""
         if sampling_params is None:
-            sampling_params = SamplingParams()
+            sampling_params = SamplingParams(max_generate_tokens=self.model.max_model_len)
         seq = Sequence(
             token_ids=token_ids,
             sampling_params=sampling_params,
@@ -128,7 +130,8 @@ class CausalLM:
                 if key not in wmap:
                     logger.warning(f"{key} not in wmap")
                     continue
-                sd[wmap[key]] = weights[key]
+                sd[wmap.pop(key)] = weights[key]
+        assert len(wmap) == 0, f"Some weights are not in the weight map: {wmap}"
         return sd
 
     def convert_safetensor_format(self):
@@ -152,7 +155,8 @@ class CausalLM:
                     if key not in wmap:
                         logger.warning(f"{key} not in wmap")
                         continue
-                    sd[wmap[key]] = f.get_tensor(key)
+                    sd[wmap.pop(key)] = f.get_tensor(key)
+        assert len(wmap) == 0, f"Some weights are not in the weight map: {wmap}"
         return sd
 
     def build_model(
