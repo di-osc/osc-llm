@@ -10,17 +10,19 @@ class LLM:
     def __init__(
         self,
         checkpoint_dir: str,
-        gpu_memory_utilization: float = 0.5,
+        gpu_memory_utilization: float | None = None,
         device: str = "cuda",
+        cuda_graph: bool = True,
     ):
         """High-level convenience wrapper around tokenizer + causal LM runtime."""
         self.checkpoint_dir = checkpoint_dir
-        self.tokenizer = Tokenizer(checkpoint_dir=checkpoint_dir)
+        self.tokenizer = Tokenizer(checkpoint_dir)
         self.model = load_causal_lm(checkpoint_dir)
         self.model.setup(
             gpu_memory_utilization=gpu_memory_utilization,
             device=device,
             eos_id=self.tokenizer.eos_id,
+            cuda_graph=cuda_graph,
         )
 
     def chat(
@@ -33,10 +35,13 @@ class LLM:
         """Chat API that renders messages via chat template and generates reply."""
         if sampling_params is None:
             sampling_params = SamplingParams()
-        prompt = self.tokenizer.apply_chat_template(messages, enable_thinking=enable_thinking)
+        prompt = self.tokenizer.apply_chat_template(
+            messages, enable_thinking=enable_thinking, add_generation_prompt=True
+        )
         token_ids = self.tokenizer.encode(prompt).tolist()
         if stream:
             return self.tokenizer.decode_stream(self.model.stream(token_ids, sampling_params))
+
         else:
             content = self.tokenizer.decode(self.model.batch([token_ids], [sampling_params])[0])
             thinking_content, content = self.tokenizer.split_thinking_content(content)
@@ -54,7 +59,7 @@ class LLM:
         """One-shot text generation for a single prompt."""
         if sampling_params is None:
             sampling_params = SamplingParams()
-        token_ids = self.tokenizer.encode(prompt).tolist()
+        token_ids = self.tokenizer.encode(prompt)
         return self.tokenizer.decode(self.model.batch([token_ids], [sampling_params])[0])
 
     def batch_generate(
@@ -65,7 +70,7 @@ class LLM:
         """Generate completions for a batch of prompts."""
         if sampling_params is None:
             sampling_params = [SamplingParams() for _ in prompts]
-        batch_token_ids = [self.tokenizer.encode(prompt).tolist() for prompt in prompts]
+        batch_token_ids = [self.tokenizer.encode(prompt) for prompt in prompts]
         batch_completion_token_ids = self.model.batch(batch_token_ids, sampling_params)
         return [self.tokenizer.decode(token_ids) for token_ids in batch_completion_token_ids]
 

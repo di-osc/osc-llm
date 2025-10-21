@@ -8,6 +8,7 @@ def chat(
     gpu_memory_utilization: float = 0.5,
     device: str = "cuda",
     enable_thinking: bool = True,
+    cuda_graph: bool = True,
 ):
     """chat with a model
 
@@ -16,7 +17,7 @@ def chat(
         gpu_memory_utilization (float, optional): the GPU memory utilization. Defaults to 0.5.
         device (str, optional): the device to use. Defaults to "cuda".
     """
-    llm = LLM(checkpoint_dir, gpu_memory_utilization, device)
+    llm = LLM(checkpoint_dir, gpu_memory_utilization, device, cuda_graph)
     messages = []
     while True:
         user_input = input("Input: ")
