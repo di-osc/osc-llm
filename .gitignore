@@ -8,3 +8,4 @@ data
 lightning_logs
 *.lock
 osc_llm.egg-info
+*.pt
