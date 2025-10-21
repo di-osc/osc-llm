@@ -15,7 +15,6 @@ class Qwen2ForCausalLM(CausalLM):
         weight_map = {
             "model.embed_tokens.weight": "embedding.embed.weight",
             "model.norm.weight": "head_norm.weight",
-            "lm_head.weight": "head.predictor.weight",
         }
 
         for i in range(self.hf_config["num_hidden_layers"]):
