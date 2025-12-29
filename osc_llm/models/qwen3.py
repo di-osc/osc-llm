@@ -37,7 +37,7 @@ class Qwen3ForCausalLM(CausalLM):
     def osc_config(self) -> Config:
         tempelate = """
         [model]
-        @architecture = "TransformerDecoder"
+        @architecture = "AutoRegressiveTransformer"
         num_layers = {num_hidden_layers}
         prenorm = "True"
 

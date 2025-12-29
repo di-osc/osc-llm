@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from confection import Config
 from loguru import logger
-from osc_transformers import SamplingParams, Sequence, TransformerDecoder
+from osc_transformers import SamplingParams, Sequence, AutoRegressiveTransformer
 
 from ..registry import Registry
 
@@ -26,7 +26,7 @@ class CausalLM:
         assert (
             self.hf_architecture in self.hf_config["architectures"]
         ), f"Only support {self.hf_architecture} model, current model is {self.hf_config['architectures']}"
-        self.model: TransformerDecoder = self.load()
+        self.model: AutoRegressiveTransformer = self.load()
         cfg_path = self.checkpoint_dir / "model.cfg"
         if not cfg_path.exists():
             self.osc_config.to_disk(cfg_path)
@@ -177,7 +177,7 @@ class CausalLM:
         Returns:
             torch.nn.Module: the model built from the configuration.
         """
-        model = TransformerDecoder.from_config(config, empty_init=empty_init, model_section=model_section)
+        model = AutoRegressiveTransformer.from_config(config, empty_init=empty_init, model_section=model_section)
         if return_config:
             return model, config
         return model
